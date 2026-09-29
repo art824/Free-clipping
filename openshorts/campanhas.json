@@ -1,0 +1,11 @@
+{
+ "_leia": "Campanhas de corte ativas. Apagar a chave = desligar a campanha, sem mexer em codigo. So vale pro job em que organizar(campanha=...) for chamado com a chave.",
+
+ "fabio-neto": {
+  "de_onde": "Clipei - Fabio Neto - CPMV, ate R$ 3,00/mil views, views contam 7 dias",
+  "plataforma": "youtube + instagram",
+  "marcacoes_no_titulo": "@StartSeOficial @kompbr #fnetokp #fabioneto #kompbr",
+  "marcacoes_instagram": "@fabio_neto_ @startseoficial @kompbr #fnetokp #fabioneto #kompbr",
+  "observacoes": "No YouTube a marcacao vai no TITULO, nunca na descricao. Titulo do YouTube tem limite de 100 caracteres e essas marcacoes ocupam 51, entao sobram 48 pro titulo - organizar.py corta no limite da palavra. Horario livre (00:00-23:59). Regra 6 da campanha: o Fabio tem que aparecer em >=50% do clipe, conferir na mao antes de deixar subir."
+ }
+}

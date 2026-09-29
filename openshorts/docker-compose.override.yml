@@ -1,0 +1,48 @@
+# Local override — arquivos pesados (vídeos de origem + clipes renderizados) vão pro HD externo F:
+# em vez de encher o C:. Auto-carregado pelo `docker compose`.
+services:
+  backend:
+    volumes:
+      - "F:/OpenShorts/output:/app/output"
+      - "F:/OpenShorts/uploads:/app/uploads"
+      - "F:/OpenShorts/work:/app/work"
+    environment:
+      - WHISPER_MODEL=small
+      - WHISPER_DEVICE=cpu
+      - WHISPER_COMPUTE=int8
+      # Cold-open hook: prepend a ~3s taste of the punchiest line (cold_open.py)
+      - MAX_CONCURRENT_JOBS=1
+      - COLD_OPEN=1
+      - COLD_OPEN_AI=1
+      # Caption look — every field overridable here (see AUTO_CAPTION_STYLE).
+      # Defaults now = Montserrat ExtraBold, size 32 (14/09: 20% menor que 40), outline 5, shadow 2.
+      # Alternatives: CAPTION_FONT="Poppins ExtraBold" or "Inter ExtraBold".
+      # 25/09 (pedido do Arthur): legenda simples, menor, no meio-baixo (acima dos botoes do
+      # TikTok/IG embaixo), sem efeito de pulo; sem chiado na abertura.
+      # 28/09: mais 20% menor (24->19, o motor ja aplica *0.85 em cima disso -
+      # tamanho final 20->16) e um pouco mais pra cima (85->110, ainda nao
+      # centralizado). Titulo (AUTO_HOOK) desligado - ficava pequeno demais.
+      - CAPTION_FONT=Inter ExtraBold
+      - CAPTION_SIZE=19
+      - CAPTION_ALIGN=bottom
+      - CAPTION_MARGIN_V=110
+      - CAPTION_UPPER=0
+      - CAPTION_BORDER=3
+      - CAPTION_SHADOW=1
+      - CAPTION_EFFECT=none
+      - CAPTION_MAX_CHARS=18
+      # 28/09: era 0 (o riser de ruido rosa soava "TV fora do ar") - agora com
+      # o som de verdade que o Arthur escolheu (openshorts/assets/riser_buildup.mp3)
+      - COLD_OPEN_RISER=1
+      - AUTO_HOOK=0
+      - AUTO_HOOK_SOURCE=title
+      - AUTO_HOOK_WORDS=6
+      - AUTO_HOOK_STYLE=outline
+      - AUTO_HOOK_SECONDS=0
+      - AUTO_HOOK_SCALE=0.85
+      - AUTO_HOOK_Y=0.055
+      - HOOK_FONT_FILE=fonts/Inter-ExtraBold.ttf
+
+  renderer:
+    volumes:
+      - "F:/OpenShorts/output:/output"

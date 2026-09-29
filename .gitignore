@@ -1,0 +1,27 @@
+# Segredos - NUNCA versionar
+auto_config.json
+openshorts/.env
+*.pem
+*.key
+
+# Runtime / caches - grandes, regenerados sozinhos, nao sao codigo
+__pycache__/
+**/__pycache__/
+openshorts/.cache/
+openshorts/node_modules/
+openshorts/dashboard/node_modules/
+node_modules/
+*.pyc
+
+# Modelos/pesos e midia de demo grandes (nao sao codigo)
+openshorts/yolov8n.pt
+openshorts/demo-openshorts.mp4
+openshorts/churchil_queen_vertical.gif
+openshorts/screenshots/
+
+# Dumps de dado local (regenerados a qualquer momento, nao sao config)
+dados_painel.json
+varredor_cache.json
+
+# Nunca aponta pro disco externo F: nem pra pastas de trabalho locais
+F:/
