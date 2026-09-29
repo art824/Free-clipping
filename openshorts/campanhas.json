@@ -1,11 +1,14 @@
 {
  "_leia": "Campanhas de corte ativas. Apagar a chave = desligar a campanha, sem mexer em codigo. So vale pro job em que organizar(campanha=...) for chamado com a chave.",
+ "_leia_canal_fonte": "canal_fonte (opcional, por campanha): @handle ou UC... do canal DO PROPRIO CRIADOR no YouTube aberto. So usado por 'python varredor.py --cpmv' (varredor.py, raiz do repo) pra achar video novo desses criadores - NAO afeta organizar.py/postagem. Deixe ausente ou comecando com 'PREENCHER' pra ficar ignorado (--cpmv pula campanha sem canal_fonte valido, nunca quebra).",
+ "_pendente_piero_franceschi": "Campanha StartSe/Clipei do Piero Franceschi, mesmo valor CPMV do Fabio Neto (R$3,00/mil), ainda NAO implementada - falta confirmar na pagina da campanha (Clipei) as marcacoes_no_titulo/marcacoes_instagram exatas e o canal_fonte (handle do Piero no YouTube) antes de criar a chave 'piero-franceschi' aqui. Nao adicionar a chave com valores adivinhados - marcacao errada derruba o pagamento da campanha.",
 
  "fabio-neto": {
   "de_onde": "Clipei - Fabio Neto - CPMV, ate R$ 3,00/mil views, views contam 7 dias",
   "plataforma": "youtube + instagram",
   "marcacoes_no_titulo": "@StartSeOficial @kompbr #fnetokp #fabioneto #kompbr",
   "marcacoes_instagram": "@fabio_neto_ @startseoficial @kompbr #fnetokp #fabioneto #kompbr",
+  "canal_fonte": "PREENCHER_HANDLE_DO_FABIO_NETO",
   "observacoes": "No YouTube a marcacao vai no TITULO, nunca na descricao. Titulo do YouTube tem limite de 100 caracteres e essas marcacoes ocupam 51, entao sobram 48 pro titulo - organizar.py corta no limite da palavra. Horario livre (00:00-23:59). Regra 6 da campanha: o Fabio tem que aparecer em >=50% do clipe, conferir na mao antes de deixar subir."
  }
 }

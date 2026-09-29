@@ -7,6 +7,7 @@ ja traz titulo, data e VIEWS dos ultimos 15 videos - e marca Short no proprio li
     python varredor.py              -> so mostra o ranking, nao mexe em nada
     python varredor.py --add 2      -> mostra e joga os 2 melhores na fila de corte
     python varredor.py --dias 30    -> olha 30 dias pra tras (padrao: 21)
+    python varredor.py --cpmv       -> so os canais-fonte de campanhas CPMV (ve abaixo)
 
 Ranking e por VIEWS POR DIA, nao por view bruta: video de 3 dias com 60k views
 esta mais quente que um de 2 anos com 400k.
@@ -14,6 +15,16 @@ esta mais quente que um de 2 anos com 400k.
 Canais ficam em varredor_canais.json (nome -> id ou @handle; handle e resolvido
 e gravado na primeira vez). Duracao vem da pagina do video, so pros finalistas,
 e fica em cache pra nao buscar duas vezes.
+
+--cpmv: campanhas CPMV pagam bem (R$0,80-3,00/mil) mas o material do criador
+quase nao circula fora da biblioteca privada da plataforma de campanha (ex.:
+Clipei exige login - yt-dlp/RSS nao alcançam isso). O que da pra automatizar e
+so a metade publica: descobrir quando o PROPRIO criador posta video novo no
+YouTube aberto. Por isso esse modo troca a fonte de canais: em vez de
+CANAIS_PADRAO (perseguicao de virale), olha CANAL_FONTE em openshorts/campanhas.json
+(um por campanha) e mostra QUALQUER video novo dentro da janela, sem ranking
+por views/dia - com pouco material saindo, todo video novo desses criadores e
+candidato, bombando ou nao.
 """
 
 import argparse
@@ -29,6 +40,7 @@ from datetime import datetime, timezone
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 CANAIS_JSON = os.path.join(RAIZ, "varredor_canais.json")
 CACHE_JSON = os.path.join(RAIZ, "varredor_cache.json")
+CAMPANHAS_JSON = os.path.join(RAIZ, "openshorts", "campanhas.json")
 LINKS = r"F:\OpenShorts\ENTRADA\links_conta1.txt"
 
 MIN_MINUTOS = 20      # abaixo disso nao rende 6 clipes
@@ -124,6 +136,28 @@ def duracao_segundos(video_id, cache):
     return seg
 
 
+def canais_cpmv():
+    """Le openshorts/campanhas.json e devolve {"CPMV:<chave>": canal_fonte} so pras
+    campanhas que ja tem o canal do criador preenchido - uma campanha sem
+    "canal_fonte" (ou com o valor placeholder) e ignorada em silencio, nunca
+    quebra o --cpmv por causa de uma campanha ainda incompleta.
+    """
+    try:
+        with open(CAMPANHAS_JSON, encoding="utf-8") as fh:
+            campanhas = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    saida = {}
+    for chave, cfg in campanhas.items():
+        if chave.startswith("_") or not isinstance(cfg, dict):
+            continue
+        fonte = str(cfg.get("canal_fonte") or "").strip()
+        if not fonte or fonte.startswith("PREENCHER"):
+            continue
+        saida[f"CPMV:{chave}"] = fonte
+    return saida
+
+
 def ja_na_fila():
     """Ids que ja estao no links_conta1.txt, feitos ou nao."""
     try:
@@ -144,9 +178,18 @@ def main():
     ap.add_argument("--dias", type=int, default=21, help="janela de busca (padrao 21)")
     ap.add_argument("--add", type=int, default=0, metavar="N",
                     help="joga os N melhores na fila de corte")
+    ap.add_argument("--cpmv", action="store_true",
+                    help="so os canais-fonte de campanhas CPMV (campanhas.json), sem ranking por views/dia")
     args = ap.parse_args()
 
-    canais = carregar(CANAIS_JSON, CANAIS_PADRAO)
+    if args.cpmv:
+        canais = canais_cpmv()
+        if not canais:
+            print("Nenhuma campanha em openshorts/campanhas.json tem \"canal_fonte\" preenchido ainda.")
+            print("Adicione o handle/UC do canal do criador em cada campanha pra usar --cpmv.")
+            return 0
+    else:
+        canais = carregar(CANAIS_JSON, CANAIS_PADRAO)
     cache = carregar(CACHE_JSON, {})
     conhecidos = ja_na_fila()
     agora = datetime.now(timezone.utc)
@@ -176,17 +219,23 @@ def main():
             novos += 1
         print(f"  {nome}: {len(videos)} videos, {novos} candidato(s)")
 
-    if mudou_canais:
+    if mudou_canais and not args.cpmv:
         salvar(CANAIS_JSON, canais)
     if not candidatos:
         print(f"\nNada novo nos ultimos {args.dias} dias.")
         return 0
 
-    candidatos.sort(key=lambda v: v["vpd"], reverse=True)
+    if args.cpmv:
+        # material de campanha e raro - todo candidato importa, mais recente primeiro
+        candidatos.sort(key=lambda v: v["idade"])
+    else:
+        candidatos.sort(key=lambda v: v["vpd"], reverse=True)
 
-    # duracao so pros finalistas: 1 pagina por video, nao pro feed inteiro
+    # duracao so pros finalistas: 1 pagina por video, nao pro feed inteiro.
+    # --cpmv nao trunca em 15 (o normal e vir 1 ou 2 candidatos, nunca mais).
+    finalistas = candidatos if args.cpmv else candidatos[:15]
     aprovados = []
-    for v in candidatos[:15]:
+    for v in finalistas:
         seg = duracao_segundos(v["id"], cache)
         v["min"] = seg / 60
         if seg and not (MIN_MINUTOS <= v["min"] <= MAX_MINUTOS):

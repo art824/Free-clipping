@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel dos Canais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1013; --surface:#181a1f; --surface-2:#1f222a; --border:#2a2e37;
+  --text:#eceae5; --muted:#93979f; --muted-2:#5f636c;
+  /* Paleta por posicao (categorica, ordem fixa) - um canal novo pega a
+     proxima cor da lista sozinho, sem precisar declarar nada aqui. */
+  --accent-1:#ff6b47; --accent-2:#2ecc71; --accent-3:#a78bfa; --accent-4:#4dabf7; --accent-5:#f06595;
+  --gold:#f0c14b;
+  --ok:#2ecc71; --warn:#f0c14b; --bad:#ff5c5c;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f7f6f3; --surface:#ffffff; --surface-2:#f0efeb;
+    --border:#e2e0da; --text:#1c1b18; --muted:#68655d; --muted-2:#9a968c;
+    --accent-1:#e8562f; --accent-2:#1a9850; --accent-3:#7c5cd6; --accent-4:#1c7ed6; --accent-5:#d6336c;
+    --gold:#b8860b;
+    color-scheme: light;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1013; --surface:#181a1f; --surface-2:#1f222a; --border:#2a2e37;
+  --text:#eceae5; --muted:#93979f; --muted-2:#5f636c;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+*{scrollbar-width:thin; scrollbar-color:var(--border) transparent}
+::-webkit-scrollbar{width:10px; height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border); border-radius:6px; border:2px solid var(--bg); background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--muted-2)}
+body{
+  background:
+    radial-gradient(1200px 520px at 15% -12%, color-mix(in srgb, var(--accent-1) 13%, transparent), transparent 60%),
+    radial-gradient(900px 480px at 108% 8%, color-mix(in srgb, var(--accent-3) 10%, transparent), transparent 62%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--text); font-family:'Manrope',system-ui,sans-serif; margin:0; padding:24px 16px 60px; min-height:100%;
+  position:relative;
+}
+.wrap{max-width:1180px; margin:0 auto; position:relative; z-index:1}
+.top{display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:22px}
+body:not(.settled) .top{animation:fadeInUp .5s cubic-bezier(.16,.8,.3,1) both}
+h1{font-size:22px; font-weight:800; margin:0 0 4px; letter-spacing:-.01em; background:linear-gradient(90deg, var(--text), color-mix(in srgb, var(--text) 65%, var(--accent-1))); -webkit-background-clip:text; background-clip:text; color:transparent}
+.sub{color:var(--muted); font-size:13px; margin:0; transition:opacity .25s}
+.fresh{font-family:'JetBrains Mono',monospace; font-size:12px; padding:6px 10px; border-radius:7px; background:var(--surface); border:1px solid var(--border); color:var(--muted); white-space:nowrap; transition:color .3s, border-color .3s; position:relative}
+.fresh::before{content:""; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--ok); margin-right:6px; box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); animation:pulseDot 2.2s ease-out infinite}
+.fresh.stale::before{background:var(--bad); animation:none; box-shadow:none}
+.fresh.stale{color:var(--bad); border-color:color-mix(in srgb, var(--bad) 45%, var(--border))}
+button.reload{font:inherit; font-size:12px; font-weight:700; cursor:pointer; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:7px; padding:6px 12px; margin-left:8px; transition:transform .15s, border-color .15s, box-shadow .15s}
+button.reload:hover{border-color:var(--muted); transform:translateY(-1px); box-shadow:0 4px 14px -6px rgba(0,0,0,.4)}
+button.reload:active{transform:translateY(0) scale(.97)}
+button.reload.spinning{pointer-events:none; opacity:.7}
+button.reload.spinning::after{content:""; display:inline-block; width:10px; height:10px; margin-left:7px; border-radius:50%; border:2px solid color-mix(in srgb, var(--text) 30%, transparent); border-top-color:var(--text); vertical-align:-1px; animation:spin .6s linear infinite}
+
+@keyframes fadeInUp{ from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
+@keyframes pulseDot{ 0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent)} 70%{box-shadow:0 0 0 6px transparent} 100%{box-shadow:0 0 0 0 transparent} }
+@keyframes spin{ to{transform:rotate(360deg)} }
+@keyframes popIn{ from{opacity:0; transform:scale(.6)} to{opacity:1; transform:scale(1)} }
+@keyframes flamePulse{
+  0%,100%{ box-shadow:0 0 0 0 color-mix(in srgb, var(--gold) 50%, transparent), 0 2px 10px -2px color-mix(in srgb, var(--gold) 40%, transparent) }
+  50%{ box-shadow:0 0 0 7px transparent, 0 2px 16px -2px color-mix(in srgb, var(--gold) 65%, transparent) }
+}
+@keyframes flameFlicker{
+  0%,100%{ transform:scale(1) rotate(-2deg) }
+  30%{ transform:scale(1.12) rotate(3deg) }
+  60%{ transform:scale(.96) rotate(-1deg) }
+}
+@keyframes trendSlideIn{ from{opacity:0; transform:translateX(-6px)} to{opacity:1; transform:translateX(0)} }
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
+  /* O modal de detalhe (transicao de elemento compartilhado) e decorativo,
+     pedido explicitamente pelo Arthur - roda sempre, mesmo com reduced-motion
+     ligado no SO (o resto do painel continua respeitando a preferencia). */
+  #detail-slot, #detail-slot *{animation-duration:revert !important; transition-duration:revert !important}
+}
+
+.state{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:28px 24px; margin-bottom:20px}
+.state h2{margin:0 0 10px; font-size:16px}
+.state p{color:var(--muted); font-size:13.5px; line-height:1.6; margin:0 0 10px; max-width:640px}
+.state code{font-family:'JetBrains Mono',monospace; background:var(--surface-2); padding:2px 6px; border-radius:5px; font-size:12.5px}
+.state.err{border-color:var(--bad)}
+
+.grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.card{
+  position:relative; overflow:hidden;
+  background:linear-gradient(160deg, color-mix(in srgb, var(--accent) 6%, var(--surface)), var(--surface) 55%);
+  border:1px solid var(--border); border-radius:14px; padding:18px; border-left:3px solid var(--accent);
+  box-shadow:0 1px 0 0 rgba(255,255,255,.03) inset, 0 10px 24px -18px rgba(0,0,0,.6);
+  will-change:transform;
+}
+body:not(.settled) .card{
+  animation:fadeInUp .5s cubic-bezier(.16,.8,.3,1) both;
+  animation-delay:calc(var(--i, 0) * 60ms);
+}
+.card::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:radial-gradient(220px 120px at 85% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+  opacity:0; transition:opacity .3s;
+}
+.card:hover::before{opacity:1}
+.card .ch-name{font-weight:800; font-size:15px; margin:0 0 2px}
+.card .ch-handle{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--muted); margin:0 0 10px}
+
+/* Selo de tendencia: 5 niveis (viral / alta forte / leve alta / estavel /
+   queda) + "coletando" quando ainda nao ha 2 dias de historico pra comparar -
+   nunca inventa tendencia de 1 ponto so. Cor + icone + texto (nunca so cor). */
+.trend-chip{
+  display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:800;
+  padding:4px 10px 4px 8px; border-radius:20px; margin-bottom:12px;
+  background:color-mix(in srgb, var(--tc) 16%, transparent);
+  color:color-mix(in srgb, var(--tc) 88%, var(--text));
+  border:1px solid color-mix(in srgb, var(--tc) 30%, transparent);
+  animation:trendSlideIn .4s cubic-bezier(.16,.8,.3,1) both .15s;
+  cursor:help;
+}
+.trend-chip .trend-icon{font-size:13px; line-height:1}
+.trend-chip .trend-days{opacity:.7; font-weight:600}
+.trend-chip.trend-collecting{background:transparent; border-style:dashed}
+.trend-chip.trend-viral{
+  background:linear-gradient(90deg, color-mix(in srgb, var(--gold) 30%, transparent), color-mix(in srgb, var(--gold) 12%, transparent));
+  animation:trendSlideIn .4s cubic-bezier(.16,.8,.3,1) both .15s, flamePulse 1.8s ease-in-out .5s infinite;
+}
+.trend-chip.trend-viral .trend-icon{display:inline-block; animation:flameFlicker 1.4s ease-in-out infinite}
+.trend-chip.trend-big{font-size:13px; padding:6px 14px 6px 10px}
+.trend-chip.trend-big .trend-icon{font-size:15px}
+
+.mini-spark{margin:2px 0 12px; opacity:.9}
+.mini-spark svg{display:block; width:100%; height:22px; overflow:visible}
+
+.flame{display:inline-block; animation:flameFlicker 1.4s ease-in-out infinite; margin-right:2px}
+.mini-row.mini-hot{
+  background:linear-gradient(90deg, color-mix(in srgb, var(--gold) 14%, transparent), transparent);
+  border-radius:6px; padding-left:6px; margin-left:-6px;
+}
+.mini-row.mini-hot .n{color:var(--gold); font-weight:800}
+.stat-row{display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid var(--border); font-size:13px}
+.stat-row:first-of-type{border-top:none}
+.stat-row .k{color:var(--muted)}
+.stat-row .v{font-family:'JetBrains Mono',monospace; font-weight:700; text-align:right; font-variant-numeric:tabular-nums}
+.badge{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; font-family:'JetBrains Mono',monospace}
+.badge.gold{background:color-mix(in srgb, var(--gold) 20%, transparent); color:var(--gold)}
+.dot{width:7px;height:7px;border-radius:50%; flex-shrink:0}
+.dot.ok{background:var(--ok); box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); animation:pulseDot 2.4s ease-out infinite}
+.dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+.check-row{display:flex; align-items:center; gap:7px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); font-size:12.5px}
+.check-row .k{color:var(--muted); flex:1}
+.next{margin-top:10px; padding:10px 11px; background:var(--surface-2); border-radius:9px; font-size:12.5px; line-height:1.5}
+.next .lbl{color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:3px}
+.next .campaign-tag{color:var(--gold); font-weight:700}
+
+.section-title{font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:26px 0 10px}
+body:not(.settled) .section-title{animation:fadeInUp .5s cubic-bezier(.16,.8,.3,1) both}
+.card{cursor:pointer; transition:transform .35s cubic-bezier(.16,.8,.3,1), border-color .2s, box-shadow .35s, opacity .15s ease}
+.card:hover{
+  border-color:color-mix(in srgb, var(--accent) 55%, var(--border));
+  transform:translateY(-4px);
+  box-shadow:0 1px 0 0 rgba(255,255,255,.04) inset, 0 22px 34px -20px color-mix(in srgb, var(--accent) 35%, rgba(0,0,0,.55));
+}
+.card:active{transform:translateY(-2px) scale(.985); transition-duration:.12s}
+.card.open{border-color:var(--accent)}
+
+/* Grade recua e escurece um pouco quando o modal esta aberto - reforca que o
+   detalhe esta ACIMA de tudo, em vez de so empurrar o conteudo pra baixo. */
+.grid{transition:filter .4s ease, transform .45s cubic-bezier(.22,1,.36,1)}
+.grid.dimmed{filter:saturate(.65) brightness(.8); transform:scale(.982)}
+
+/* ---- Modal, versao simples e a prova de falha ----
+   Tentei antes uma transicao de elemento compartilhado (o card "virando" o
+   modal, voando de posicao) - quebrou no visualizador de artefatos do app
+   (tela preta / clique nao abria) depois de 3 tentativas de ajuste fino.
+   Trocado por um modal direto: aparece centralizado com fade+scale simples,
+   sem nenhuma coreografia de rect/transitionend que possa falhar. */
+#detail-slot:empty{ display:none }
+.modal-backdrop{
+  position:fixed; inset:0; z-index:1000;
+  background-color:color-mix(in srgb, black 45%, var(--bg) 55%);
+  backdrop-filter:blur(10px) saturate(1.15); -webkit-backdrop-filter:blur(10px) saturate(1.15);
+  opacity:0; transition:opacity .3s ease;
+}
+.modal-backdrop.show{opacity:1}
+.modal-panel{
+  position:fixed; z-index:1002; top:50%; left:50%;
+  width:min(760px, calc(100vw - 32px)); max-height:calc(100vh - 56px);
+  overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain;
+  background-color:var(--surface);
+  background-image:linear-gradient(160deg, color-mix(in srgb, var(--accent, var(--accent-1)) 9%, var(--surface)), var(--surface) 62%);
+  border:1px solid color-mix(in srgb, var(--accent, var(--accent-1)) 35%, var(--border));
+  border-radius:20px;
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.7), 0 1px 0 0 rgba(255,255,255,.04) inset;
+  opacity:0; transform:translate(-50%,-50%) scale(.985);
+  transition:opacity .3s ease, transform .35s cubic-bezier(.22,1,.36,1);
+}
+.modal-panel.show{opacity:1; transform:translate(-50%,-50%) scale(1)}
+.modal-panel-inner{padding:26px 28px 30px; border-left:3px solid var(--accent, var(--accent-1)); margin:-1px}
+/* Anima com @keyframes puro, disparado sozinho quando o elemento entra no
+   DOM - nao depende de nenhuma classe JS chegar a tempo. */
+.modal-panel-inner > *{
+  animation:modalContentIn .5s cubic-bezier(.22,1,.36,1) both;
+}
+.modal-panel-inner > *:nth-child(1){animation-delay:.03s}
+.modal-panel-inner > *:nth-child(2){animation-delay:.1s}
+.modal-panel-inner > *:nth-child(3){animation-delay:.17s}
+@keyframes modalContentIn{ from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
+.detail-section + .detail-section{margin-top:18px}
+.detail-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px}
+.detail-head h3{margin:0; font-size:16px}
+.detail-close{background:none; border:none; color:var(--muted); font-size:20px; cursor:pointer; line-height:1; padding:2px 6px; border-radius:6px; transition:color .15s, background .15s, transform .15s}
+.detail-close:hover{color:var(--text); background:var(--surface-2); transform:rotate(90deg)}
+.detail-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px}
+@media (max-width:700px){.detail-grid{grid-template-columns:1fr}}
+.detail-sub{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 8px}
+.mini-row{display:flex; justify-content:space-between; gap:8px; font-size:12.5px; padding:6px 0; border-top:1px solid var(--border); transition:padding-left .15s, color .15s}
+.mini-row:first-child{border-top:none}
+.mini-row:hover{padding-left:4px; color:var(--text)}
+.mini-row .t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1}
+.mini-row .n{font-family:'JetBrains Mono',monospace; color:var(--muted); flex-shrink:0; font-variant-numeric:tabular-nums}
+.chart-wrap{margin-top:4px}
+.chart-wrap svg{width:100%; height:auto; overflow:visible}
+.chart-axis-label{font-size:9px; fill:var(--muted-2); font-family:'JetBrains Mono',monospace}
+.chart-val-label{font-size:10px; fill:var(--muted); font-family:'JetBrains Mono',monospace; font-weight:700}
+.chart-pt{cursor:default; transform-box:fill-box; transform-origin:center; animation:popIn .3s cubic-bezier(.34,1.56,.64,1) both; animation-delay:calc(var(--i,0)*70ms + .25s)}
+.chart-pt:hover{filter:brightness(1.3)}
+.chart-area{animation:fadeInUp .6s ease both .3s}
+.big-stat{display:flex; gap:18px; margin-bottom:14px}
+.big-stat div{flex:1; background:var(--surface-2); border-radius:9px; padding:10px 12px; transition:transform .18s, box-shadow .18s; box-shadow:0 1px 0 0 rgba(255,255,255,.03) inset}
+.big-stat div:hover{transform:translateY(-2px); box-shadow:0 1px 0 0 rgba(255,255,255,.04) inset, 0 10px 18px -12px rgba(0,0,0,.5)}
+.big-stat .lbl{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.big-stat .val{font-family:'JetBrains Mono',monospace; font-weight:800; font-size:17px; margin-top:2px; font-variant-numeric:tabular-nums}
+.qwrap{background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:16px}
+body:not(.settled) .qwrap{animation:fadeInUp .5s cubic-bezier(.16,.8,.3,1) both; animation-delay:calc(var(--i,0)*60ms)}
+.qhead{display:flex; align-items:center; gap:10px; padding:13px 16px; cursor:pointer; user-select:none; transition:background .15s}
+.qhead:hover{background:var(--surface-2)}
+.qhead .sw{width:9px;height:9px;border-radius:50%; background:var(--accent); flex-shrink:0; box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent)}
+.qhead .name{font-weight:800; font-size:13.5px; flex:1}
+.qhead .count{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted)}
+.qhead .arrow{color:var(--muted-2); font-size:11px; transition:transform .25s cubic-bezier(.16,.8,.3,1)}
+.qhead.open .arrow{transform:rotate(90deg)}
+.qbody{display:grid; grid-template-rows:0fr; transition:grid-template-rows .28s cubic-bezier(.16,.8,.3,1); opacity:0}
+.qbody.expanded{grid-template-rows:1fr; opacity:1; transition:grid-template-rows .28s cubic-bezier(.16,.8,.3,1), opacity .35s}
+.qbody > div{overflow:hidden; min-height:0}
+table{width:100%; border-collapse:collapse; font-size:12.5px}
+td,th{padding:8px 16px; text-align:left; border-top:1px solid var(--border)}
+th{color:var(--muted); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.04em}
+td.when{font-family:'JetBrains Mono',monospace; white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums}
+td.when.past{color:var(--muted-2)}
+tr{transition:background .12s}
+tr:hover{background:var(--surface-2)}
+tr.camp td.title{color:var(--text)}
+tr.camp td.when{color:var(--gold)}
+.tag-camp{display:inline-block; font-size:9.5px; font-weight:800; color:var(--gold); border:1px solid var(--gold); border-radius:4px; padding:1px 5px; margin-right:6px; vertical-align:middle}
+.tbody-wrap{max-height:340px; overflow-y:auto}
+.empty-note{padding:16px; color:var(--muted); font-size:12.5px}
+.state h2{display:flex; align-items:center; gap:9px}
+.state h2 .spin-ring{width:15px; height:15px; border-radius:50%; border:2px solid var(--border); border-top-color:var(--accent-1); animation:spin .7s linear infinite; flex-shrink:0}
+footer{margin-top:30px; color:var(--muted-2); font-size:11.5px; text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Overview dos canais</h1>
+      <p class="sub">Canais monitorados</p>
+    </div>
+    <div style="display:flex; align-items:center">
+      <span class="fresh" id="fresh" title="A página busca o dado direto do Apps Script (?dados=1) e se atualiza sozinha a cada minuto. Puxar dado novo do YouTube/Zapier pro Apps Script continua sendo o Claude que faz, quando pedido no chat - a página só lê o que já está lá.">carregando…</span>
+      <button class="reload" id="reload-btn" type="button">Atualizar</button>
+    </div>
+  </div>
+
+  <div id="detail-slot"></div>
+
+  <div id="root">
+    <div class="state">
+      <h2><span class="spin-ring"></span>Carregando…</h2>
+      <p>Buscando o painel no Apps Script.</p>
+    </div>
+  </div>
+
+  <footer>Os dados vêm direto do Apps Script (que por sua vez é atualizado pelo Claude a partir do YouTube/Zapier) - esta página só busca e exibe, sem intermediário. Se um número parecer errado, o quadro "esperados vs. postados" é aproximado nas primeiras 24h.</footer>
+</div>
+
+<script>
+// ATENCAO: troque pela URL de implantacao real do Apps Script (a que termina
+// em /exec), a mesma que o feed RSS/Zapier usa - so que sem parametro ?canal=,
+// chamada aqui com ?dados=1 no lugar. Pegue em Apps Script > Implantar >
+// Gerenciar implantacoes.
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/COLE_AQUI_O_ID_DE_IMPLANTACAO/exec';
+const REFRESH_MS = 60000; // auto-atualiza sozinha a cada 60s, sem precisar clicar
+
+// So o que NAO da pra descobrir sozinho pelos dados: o @handle publico (pra
+// mostrar embaixo do nome) e se o canal roda campanha (so cosmetico - o real
+// "e campanha" vem do backend, em item.campanha). Um canal novo funciona sem
+// nenhuma entrada aqui: cor pela ordem, sem handle, sem selo de campanha.
+const CHANNEL_META = {
+  pensecomodonos: { handle: "youtube.com/@pensecomodonos", camp: true },
+  themoneycut:    { handle: "youtube.com/@Money-cut" },
+  gta6:           { handle: "youtube.com/@GTA6Clips_number1" }
+};
+const ACCENTS = ["var(--accent-1)", "var(--accent-2)", "var(--accent-3)", "var(--accent-4)", "var(--accent-5)"];
+
+// colorIdx = posicao do canal na resposta do backend (Object.keys mantem a
+// ordem de insercao de CANAIS no Apps Script) - FIXA, decide so a cor. Nao e
+// a mesma coisa que a ordem de EXIBICAO (essa muda por recencia - ver
+// displayKeys) - assim a cor de cada canal fica estavel mesmo quando a
+// ordem na tela muda.
+function metaFor(key, colorIdx){
+  const base = CHANNEL_META[key] || {};
+  return {
+    accent: ACCENTS[colorIdx % ACCENTS.length],
+    handle: base.handle || "",
+    camp: !!base.camp
+  };
+}
+
+let lastData = null;
+
+function fmtInt(n){
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return Number(n).toLocaleString('pt-BR');
+}
+// Cada conta agenda no fuso do SEU publico (Brasilia pro canal BR, horario dos
+// EUA pros canais em ingles) - o .json ja guarda isso no offset do ISO. O
+// painel so PRECISA mostrar num fuso so pra nao confundir, e o combinado foi
+// hora de Paris (nao muda o que de fato foi/sera postado, so a exibicao).
+const FUSO_EXIBICAO = 'Europe/Paris';
+function fmtWhen(iso){
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', timeZone:FUSO_EXIBICAO});
+  } catch(e){ return iso; }
+}
+function isPast(iso){ return new Date(iso) <= new Date(); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Numero que conta subindo do 0 ate o valor real quando entra na tela -
+// so pra quem realmente e um numero (fmtInt ja cobre o "-" de null/NaN).
+function numSpan(cls, n, extra){
+  const isNum = n !== null && n !== undefined && !isNaN(n);
+  return `<span class="${cls}"${isNum ? ` data-cv="${n}"` : ''}${extra || ''}>${fmtInt(n)}</span>`;
+}
+function animateCounts(root, force){
+  if (!root) return;
+  root.querySelectorAll('[data-cv]').forEach(el => {
+    const target = Number(el.dataset.cv);
+    if (!isFinite(target)) return;
+    if (REDUCED_MOTION && !force) { el.textContent = target.toLocaleString('pt-BR'); return; }
+    const dur = 650, start = performance.now();
+    (function step(now){
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(target * eased).toLocaleString('pt-BR');
+      if (p < 1) requestAnimationFrame(step); else el.textContent = target.toLocaleString('pt-BR');
+    })(start);
+  });
+}
+// Desenha a linha do grafico se traçando (stroke-dashoffset), em vez de ja
+// aparecer pronta - so uma vez, no momento em que o painel de detalhe abre.
+function animateChartLines(root, force){
+  if (!root) return;
+  root.querySelectorAll('.chart-line').forEach(path => {
+    const len = path.getTotalLength();
+    if (REDUCED_MOTION && !force) return;
+    path.style.strokeDasharray = len;
+    path.style.strokeDashoffset = len;
+    path.getBoundingClientRect(); // forca reflow antes de animar
+    path.style.transition = 'stroke-dashoffset 1s cubic-bezier(.16,.8,.3,1)';
+    requestAnimationFrame(() => { path.style.strokeDashoffset = 0; });
+  });
+}
+
+// Tendencia do canal: 7 niveis reais (queda forte -> viral), mais um estado
+// "coletando" que nunca inventa direcao a partir de 1 ponto so de historico
+// (regra: amostra pequena nao e distribuicao - com menos de 2 dias so da pra
+// comparar nada). O topo ("Viral") e reservado: so dispara com um salto MUITO
+// grande de views_totais num dia (+20%) OU um video especifico que sozinho ja
+// bateu 10x a mediana do canal - nao com qualquer alta normal.
+const TREND_META = {
+  'decline-strong': { icon:'📉', label:'Queda forte',  color:'var(--bad)' },
+  'decline':        { icon:'↘',  label:'Em queda',      color:'var(--bad)' },
+  'flat':           { icon:'→',  label:'Estável',       color:'var(--muted)' },
+  'up-slight':      { icon:'↗',  label:'Leve alta',     color:'var(--ok)' },
+  'up-moderate':    { icon:'📈', label:'Crescendo',     color:'var(--ok)' },
+  'up-strong':      { icon:'🚀', label:'Disparou',      color:'var(--gold)' },
+  'viral':          { icon:'🔥', label:'Viral',         color:'var(--gold)' },
+  'collecting':     { icon:'◌',  label:'Coletando histórico', color:'var(--muted-2)' }
+};
+
+// "Fora da curva" = metodo de boxplot (Q3 + 1.5x/3x o IQR), calculado no
+// backend a partir da distribuicao REAL de views do canal - nao um
+// multiplo fixo da mediana. Um multiplo fixo (tipo "10x a mediana") quebra
+// num canal pequeno: mediana 7 vezes 10 vira 70, o que nao quer dizer nada.
+// O metodo por quartil se ajusta sozinho, mediana 7 ou mediana 7 mil.
+// threshold null = o backend nao tem videos suficientes (<4) pra calcular -
+// entao nunca marca nada, em vez de inventar um numero.
+function isOutlier(v, vs){
+  return !!(vs && vs.outlier_threshold != null && v.views > vs.outlier_threshold);
+}
+function crazyVideo(vs){
+  return !!(vs && vs.extreme_threshold != null && vs.recentes && vs.recentes[0]
+    && vs.recentes[0].views > vs.extreme_threshold);
+}
+
+function computeTrend(historico, vs){
+  const porDia = (historico && historico.by_date) || {};
+  const datas = Object.keys(porDia).sort();
+  const crazy = crazyVideo(vs);
+  if (datas.length < 2) {
+    return { level: crazy ? 'viral' : 'collecting', days: datas.length };
+  }
+  const prev = porDia[datas[datas.length - 2]].views_totais;
+  const curr = porDia[datas[datas.length - 1]].views_totais;
+  const pct = prev ? ((curr - prev) / prev) * 100 : null;
+  let level = 'flat';
+  if (pct === null) level = 'collecting';
+  else if (crazy || pct >= 20) level = 'viral';
+  else if (pct >= 8) level = 'up-strong';
+  else if (pct >= 3) level = 'up-moderate';
+  else if (pct >= 1) level = 'up-slight';
+  else if (pct > -1) level = 'flat';
+  else if (pct > -8) level = 'decline';
+  else level = 'decline-strong';
+  return { level, pct, days: datas.length, provisional: datas.length < 5 };
+}
+
+function trendChip(trend, big){
+  const m = TREND_META[trend.level];
+  const pctTxt = (trend.pct !== undefined && trend.pct !== null) ? ` ${trend.pct >= 0 ? '+' : ''}${trend.pct.toFixed(1)}%` : '';
+  const title = trend.level === 'collecting'
+    ? 'Menos de 2 dias de histórico ainda - sem tendência confiável pra mostrar'
+    : (trend.provisional ? `Baseado em só ${trend.days} dia(s) de histórico - provisório` : `${trend.days} dias de histórico`);
+  return `<span class="trend-chip trend-${trend.level}${big ? ' trend-big' : ''}" style="--tc:${m.color}" title="${esc(title)}">
+      <span class="trend-icon">${m.icon}</span>${m.label}${pctTxt}
+    </span>`;
+}
+
+// Mini-linha do card fechado: so aparece com 2+ dias reais (nunca desenha
+// tendencia de 1 ponto so).
+function miniSpark(datas, porDia, accent){
+  if (datas.length < 2) return '';
+  const W = 240, H = 22, pad = 3;
+  const vals = datas.map(d => porDia[d].views_totais);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const span = (maxV - minV) || 1;
+  const x = i => pad + (W - pad * 2) * i / (datas.length - 1);
+  const y = v => pad + (H - pad * 2) * (1 - (v - minV) / span);
+  const pts = vals.map((v, i) => [x(i), y(v)]);
+  const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const last = pts[pts.length - 1];
+  return `<div class="mini-spark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${line}" style="fill:none; stroke:${accent}; stroke-width:1.6; opacity:.85"/>
+      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2" style="fill:${accent}"/>
+    </svg></div>`;
+}
+
+function renderFreshness(geradoEm){
+  const el = document.getElementById('fresh');
+  if (!geradoEm){ el.textContent = "sem horário"; return; }
+  const mins = Math.round((Date.now() - new Date(geradoEm).getTime())/60000);
+  const stale = mins > 60;
+  el.className = "fresh" + (stale ? " stale" : "");
+  el.textContent = (stale ? "⚠ desatualizado — " : "atualizado ") + (mins < 1 ? "agora" : `há ${mins} min`);
+}
+
+function channelCard(key, ch, meta, historico, pos){
+  const stats = ch.stats || null;
+  const errStats = ch.erro_stats;
+  const errFila = ch.erro_fila;
+  const trend = computeTrend(historico, ch.video_stats);
+  const porDia = (historico && historico.by_date) || {};
+  const spark = miniSpark(Object.keys(porDia).sort(), porDia, meta.accent);
+
+  let statsHtml = "";
+  if (stats) {
+    statsHtml = `
+      <div class="stat-row"><span class="k">Inscritos</span>${numSpan('v', stats.inscritos)}</div>
+      <div class="stat-row"><span class="k">Views totais</span>${numSpan('v', stats.views_totais)}</div>
+      <div class="stat-row"><span class="k">Vídeos no ar</span>${numSpan('v', stats.total_videos)}</div>`;
+  } else if (errStats) {
+    statsHtml = `<div class="stat-row"><span class="k" style="color:var(--bad)">Stats do YouTube falharam</span></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted-2);word-break:break-all;padding:2px 0 4px">${esc(errStats)}</div>`;
+  }
+
+  let filaHtml = "";
+  if (!errFila) {
+    filaHtml = `
+      <div class="stat-row"><span class="k">Na fila (futuro)</span>${numSpan('v', ch.fila_futura)}</div>`;
+    if (meta.camp) {
+      filaHtml += `<div class="stat-row"><span class="k">— de campanha</span>${numSpan('v', ch.fila_campanha, ' style="color:var(--gold)"')}</div>`;
+    }
+  } else {
+    filaHtml = `<div class="stat-row"><span class="k" style="color:var(--bad)">Fila falhou: ${esc(errFila)}</span></div>`;
+  }
+
+  const esperado = ch.esperados_24h ?? 0;
+  const postado = (ch.postados_24h || []).length;
+  let checkDot = "ok", checkTxt = "sem posts esperados nas últimas 24h";
+  if (esperado > 0) {
+    if (postado >= esperado) { checkDot = "ok"; checkTxt = `${postado}/${esperado} postados — em dia`; }
+    else if (postado > 0) { checkDot = "warn"; checkTxt = `${postado}/${esperado} postados — abaixo do esperado`; }
+    else { checkDot = "bad"; checkTxt = `0/${esperado} postados — verificar Zapier`; }
+  }
+
+  let nextHtml = "";
+  if (ch.proximo) {
+    const isCamp = ch.proximo.campanha;
+    nextHtml = `<div class="next">
+      <div class="lbl">Próximo post <span style="opacity:.6">· horário de Paris</span></div>
+      ${isCamp ? '<span class="campaign-tag">CAMPANHA · </span>' : ''}${esc(ch.proximo.titulo)}
+      <div style="color:var(--muted);margin-top:2px">${fmtWhen(ch.proximo.quando)}</div>
+    </div>`;
+  } else if (!errFila) {
+    nextHtml = `<div class="next" style="color:var(--bad)">Fila sem próximo post agendado.</div>`;
+  }
+
+  return `
+    <div class="card" data-key="${key}" style="--accent:${meta.accent}; --i:${pos || 0}">
+      <p class="ch-name">${esc(ch.titulo || key)}</p>
+      <p class="ch-handle">${esc(meta.handle)}</p>
+      ${trendChip(trend)}
+      ${spark}
+      ${statsHtml}
+      ${filaHtml}
+      ${nextHtml}
+      <div class="check-row">
+        <span class="dot ${checkDot}"></span>
+        <span class="k">${esc(checkTxt)}</span>
+      </div>
+    </div>`;
+}
+
+function videoRow(v, vs){
+  const hot = isOutlier(v, vs);
+  return `<div class="mini-row${hot ? ' mini-hot' : ''}">
+      <span class="t">${hot ? '<span class="flame" title="Fora da curva do canal">🔥</span> ' : ''}${esc(v.titulo)}</span>
+      <span class="n">${numSpan('', v.views)} views</span>
+    </div>`;
+}
+
+// Grafico de 1 serie so (views totais no tempo): mediana/media ja mostram
+// "video tipico", aqui o que importa e a curva. Sem eixo duplo (regra do
+// dataviz: 1 serie, 1 escala) - so um numero, so uma cor, a do canal.
+function growthChart(datas, porDia, accent){
+  const W = 560, H = 150, padL = 44, padR = 12, padT = 14, padB = 22;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const vals = datas.map(d => porDia[d].views_totais);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const span = (maxV - minV) || 1;
+  const x = i => datas.length > 1 ? padL + (innerW * i / (datas.length - 1)) : padL + innerW / 2;
+  const y = v => padT + innerH - ((v - minV) / span) * innerH;
+
+  const pts = datas.map((d, i) => ({ x: x(i), y: y(porDia[d].views_totais), d, v: porDia[d].views_totais }));
+  const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+  const area = pts.length > 1
+    ? line + ` L${pts[pts.length - 1].x.toFixed(1)},${(padT + innerH).toFixed(1)} L${pts[0].x.toFixed(1)},${(padT + innerH).toFixed(1)} Z`
+    : '';
+
+  const idxLabels = pts.length <= 6 ? pts.map((_, i) => i) : [0, Math.round((pts.length - 1) / 2), pts.length - 1];
+  const dateLabels = idxLabels.map(i => `<text class="chart-axis-label" x="${pts[i].x.toFixed(1)}" y="${H - 4}" text-anchor="middle">${pts[i].d.slice(5)}</text>`).join('');
+
+  const dots = pts.map((p, i) => `
+      <circle class="chart-pt" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" style="fill:${accent}; --i:${i}">
+        <title>${p.d}: ${p.v.toLocaleString('pt-BR')} views</title>
+      </circle>`).join('');
+
+  return `
+    <div class="chart-wrap">
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Views totais ao longo do tempo">
+        <text class="chart-val-label" x="${padL}" y="${padT + 4}">${maxV.toLocaleString('pt-BR')}</text>
+        <text class="chart-val-label" x="${padL}" y="${padT + innerH}">${minV.toLocaleString('pt-BR')}</text>
+        ${pts.length > 1 ? `<path class="chart-area" d="${area}" style="fill:${accent}; opacity:.14; stroke:none"/>` : ''}
+        ${pts.length > 1 ? `<path class="chart-line" d="${line}" style="fill:none; stroke:${accent}; stroke-width:2"/>` : ''}
+        ${dots}
+        ${dateLabels}
+      </svg>
+    </div>`;
+}
+
+function detailPanel(key, ch, historico, meta){
+  const vs = ch.video_stats;
+  const errVs = ch.erro_video_stats;
+
+  let statsBlock;
+  if (vs && vs.total) {
+    statsBlock = `
+      <div class="big-stat">
+        <div><div class="lbl">Mediana de views</div><div class="val">${numSpan('', vs.mediana_views)}</div></div>
+        <div><div class="lbl">Média de views</div><div class="val">${numSpan('', vs.media_views)}</div></div>
+        <div><div class="lbl">Vídeos analisados</div><div class="val">${numSpan('', vs.total)}</div></div>
+      </div>
+      <div class="detail-grid">
+        <div>
+          <p class="detail-sub">Maiores vídeos</p>
+          ${(vs.melhores || []).map(v => videoRow(v, vs)).join('') || '<div class="empty-note">—</div>'}
+        </div>
+        <div>
+          <p class="detail-sub">Mais recentes</p>
+          ${(vs.recentes || []).map(v => videoRow(v, vs)).join('') || '<div class="empty-note">—</div>'}
+        </div>
+      </div>`;
+  } else if (errVs) {
+    statsBlock = `<div class="empty-note" style="color:var(--bad)">Estatísticas por vídeo falharam: ${esc(errVs)}</div>`;
+  } else {
+    statsBlock = `<div class="empty-note">Sem vídeos suficientes ainda.</div>`;
+  }
+
+  const trend = computeTrend(historico, vs);
+  const porDia = (historico && historico.by_date) || {};
+  const datas = Object.keys(porDia).sort().slice(-30);
+  let growthBlock;
+  if (datas.length) {
+    growthBlock = growthChart(datas, porDia, meta.accent);
+    if (datas.length < 3) {
+      growthBlock += `<p class="empty-note" style="padding:6px 0 0">Histórico começou em ${datas[0]} — a curva fica mais clara depois de alguns dias.</p>`;
+    }
+  } else {
+    growthBlock = `<div class="empty-note">Sem histórico ainda — o primeiro dia é registrado na próxima atualização.</div>`;
+  }
+
+  return `
+      <div class="detail-head">
+        <div>
+          <h3 style="margin-bottom:8px">${esc(ch.titulo || key)}</h3>
+          ${trendChip(trend, true)}
+        </div>
+        <button class="detail-close" id="detail-close" aria-label="Fechar">×</button>
+      </div>
+      <div class="detail-section">${statsBlock}</div>
+      <div class="detail-section">
+        <p class="detail-sub">Views totais por dia</p>
+        ${growthBlock}
+      </div>
+      <div class="detail-section">
+        <p class="detail-sub">Fila completa (${(ch.itens || []).length})</p>
+        ${queueTable(ch)}
+      </div>`;
+}
+
+// So a tabela da fila - o popup do canal e o unico lugar onde ela aparece
+// agora (antes tinha uma copia solta embaixo da grade, fora do popup).
+function queueTable(ch){
+  const items = ch.itens || [];
+  const rows = items.map(it => {
+    const past = isPast(it.quando);
+    return `<tr class="${it.campanha ? 'camp' : ''}">
+      <td class="when ${past ? 'past' : ''}">${fmtWhen(it.quando)}</td>
+      <td class="title">${it.campanha ? '<span class="tag-camp">CAMP</span>' : ''}${esc(it.titulo)}</td>
+    </tr>`;
+  }).join('');
+  return items.length
+    ? `<div class="tbody-wrap"><table><thead><tr><th style="width:120px" title="Postagem real segue o horário local do público de cada canal - isto é só a exibição, convertida pra Paris">Horário (Paris)</th><th>Título</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    : `<div class="empty-note">Fila vazia.</div>`;
+}
+
+let openKey = null;
+
+// Ordem fixa = a mesma em que o backend devolve os canais (Object.keys de
+// CANAIS no Apps Script preserva a ordem em que foram declarados) - usada
+// so pra cor, pra ela nao mudar quando a ordem de EXIBICAO muda.
+function backendKeys(data){
+  return Object.keys(data.canais || {});
+}
+
+// Data do video mais recente publicado nesse canal (nao so nas ultimas 24h -
+// video_stats.recentes[0] e o mais novo entre os analisados). null se o
+// canal ainda nao tem nenhum video - vai pro fim da lista, nunca inventa uma
+// data.
+function ultimoPostado(ch){
+  const vs = ch.video_stats;
+  const v = vs && vs.recentes && vs.recentes[0];
+  return v && v.publicado_em ? new Date(v.publicado_em).getTime() : null;
+}
+
+// Ordem de EXIBICAO: canal com o video mais recente primeiro. Canal sem
+// nenhum video ainda (ultimoPostado null) vai pro final, nao pro topo.
+function displayKeys(data){
+  return backendKeys(data).slice().sort((a, b) => {
+    const ta = ultimoPostado(data.canais[a]);
+    const tb = ultimoPostado(data.canais[b]);
+    if (ta === null && tb === null) return 0;
+    if (ta === null) return 1;
+    if (tb === null) return -1;
+    return tb - ta;
+  });
+}
+
+// ---- Modal simples (fade + scale), sem coreografia de posicao ----
+// Uma versao anterior fazia o card "voar" ate virar o modal; quebrou no
+// visualizador de artefatos do app depois de 3 ajustes. Essa versao so
+// cria backdrop+painel, centraliza por CSS de verdade (position:fixed +
+// inset:0 + margin:auto, nada calculado em JS) e usa uma unica classe
+// ("show") pra disparar opacity+scale. Bem menos coisa que pode falhar.
+let modal = null; // { key, root, backdrop, panel }
+
+function lockScroll(lock){ document.documentElement.style.overflow = lock ? 'hidden' : ''; }
+
+function fillModalPanel(){
+  if (!modal) return;
+  if (!lastData || !lastData.canais[modal.key]) return;
+  const idx = backendKeys(lastData).indexOf(modal.key);
+  const meta = metaFor(modal.key, idx);
+  modal.panel.style.setProperty('--accent', meta.accent);
+  modal.panel.innerHTML = `<div class="modal-panel-inner">${detailPanel(modal.key, lastData.canais[modal.key], lastData.canais[modal.key].historico, meta)}</div>`;
+  const closeBtn = modal.panel.querySelector('#detail-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeDetail);
+  animateCounts(modal.panel, true);
+  animateChartLines(modal.panel, true);
+}
+
+function openDetail(key, cardEl){
+  if (modal && modal.key === key) { closeDetail(); return; }
+  cardEl = cardEl || document.querySelector(`.card[data-key="${key}"]`);
+
+  if (modal) { // ja tem modal aberto - so troca o conteudo
+    const prevCard = document.querySelector(`.card[data-key="${modal.key}"]`);
+    if (prevCard) prevCard.classList.remove('open');
+    modal.key = key; openKey = key;
+    if (cardEl) cardEl.classList.add('open');
+    fillModalPanel();
+    return;
+  }
+
+  openKey = key;
+  if (cardEl) cardEl.classList.add('open');
+  const root = document.getElementById('detail-slot');
+  root.innerHTML = '';
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.addEventListener('click', closeDetail);
+  root.appendChild(backdrop);
+  const panel = document.createElement('div');
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.className = 'modal-panel';
+  root.appendChild(panel);
+  modal = { key, root, backdrop, panel };
+
+  document.querySelector('.grid')?.classList.add('dimmed');
+  lockScroll(true);
+  fillModalPanel();
+
+  requestAnimationFrame(() => {
+    backdrop.classList.add('show');
+    panel.classList.add('show');
+  });
+}
+
+function closeDetail(){
+  if (!modal) { openKey = null; return; }
+  const { root, backdrop, panel, key } = modal;
+  openKey = null;
+  document.querySelector('.grid')?.classList.remove('dimmed');
+  lockScroll(false);
+  const cardEl = document.querySelector(`.card[data-key="${key}"]`);
+  if (cardEl) cardEl.classList.remove('open');
+  backdrop.classList.remove('show');
+  panel.classList.remove('show');
+  modal = null;
+  setTimeout(() => { root.innerHTML = ''; }, 320);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal) closeDetail(); });
+
+function render(data){
+  lastData = data;
+  renderFreshness(data.gerado_em);
+  const root = document.getElementById('root');
+  // Ordem de EXIBICAO = video mais recente postado primeiro; a cor de cada
+  // canal continua fixa pela posicao no backend (backendKeys), nao muda
+  // quando a colocacao por recencia muda.
+  const keys = displayKeys(data);
+  const bKeys = backendKeys(data);
+  const sub = document.querySelector('.sub');
+  if (sub) sub.textContent = keys.map(k => data.canais[k].titulo || k).join(' · ');
+  const cards = keys.map((k, i) => channelCard(k, data.canais[k], metaFor(k, bKeys.indexOf(k)), data.canais[k].historico, i)).join('');
+  root.innerHTML = `<div class="grid">${cards}</div>`;
+  root.querySelectorAll('.card').forEach(c => {
+    c.classList.toggle('open', c.dataset.key === openKey);
+    c.addEventListener('click', () => openDetail(c.dataset.key, c));
+  });
+  animateCounts(root);
+  fillModalPanel(); // se o modal ja estiver aberto/pousado, atualiza o conteudo no lugar
+  // So a 1a renderizacao entra com o stagger fadeInUp - atualizacoes seguintes
+  // (historico novo, refresh) trocam o conteudo sem repetir a entrada inteira.
+  requestAnimationFrame(() => document.body.classList.add('settled'));
+}
+
+function renderPending(){
+  document.getElementById('fresh').textContent = "sem dados";
+  document.getElementById('root').innerHTML = `
+    <div class="state">
+      <h2>Painel ainda sem dados</h2>
+      <p>O Apps Script respondeu, mas ainda não tem nenhum canal registrado em <code>?dados=1</code>.</p>
+    </div>`;
+}
+
+function renderError(msg){
+  document.getElementById('fresh').textContent = "erro";
+  document.getElementById('root').innerHTML = `
+    <div class="state err">
+      <h2>Não consegui buscar os dados</h2>
+      <p style="font-family:'JetBrains Mono',monospace; font-size:12px; word-break:break-all">${esc(msg)}</p>
+      <p>Confira se <code>APPS_SCRIPT_URL</code> está com a URL de implantação certa (termina em <code>/exec</code>) e se a implantação está com acesso "Qualquer pessoa".</p>
+    </div>`;
+}
+
+async function load(manual){
+  const btn = document.getElementById('reload-btn');
+  if (manual && btn) btn.classList.add('spinning');
+  try {
+    const res = await fetch(APPS_SCRIPT_URL + '?dados=1', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || !data.canais) { renderPending(); return; }
+    render(data);
+  } catch (e) {
+    renderError(e.message || String(e));
+  } finally {
+    if (manual && btn) btn.classList.remove('spinning');
+  }
+}
+
+document.getElementById('reload-btn').addEventListener('click', () => load(true));
+
+load();
+setInterval(() => load(false), REFRESH_MS);
+</script>
+</body>
+</html>
