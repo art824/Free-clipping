@@ -516,40 +516,68 @@ function nivelPorRazao(r){
   if (r < 5)    return 2;
   return 3;
 }
+// Nota do canal = mistura de 4 sinais contra a ROTINA NORMAL do proprio canal
+// (mediana dos ganhos diarios dos dias anteriores - mediana, pra um dia
+// maluco no passado nao distorcer a base):
+//   ultimo dia (peso 10%) · mediana de 3 dias (25%) · mediana de 7 dias (45%) ·
+//   vídeos recentes vs mediana do canal (20%).
+// Os sinais de 3 e 7 dias usam MEDIANA de proposito: um dia ruim isolado nao
+// move a mediana, entao nao rebaixa o canal. Tres dias ruins seguidos movem.
+// A mistura e em escala log (2x pra cima pesa igual a 0,5x pra baixo).
+const NOTA_PESOS = { d1:0.10, d3:0.25, d7:0.45, vid:0.20 };
+function notaCanal(g, vRatio){
+  const EPS = 5; // suaviza canal minusculo: 0 -> 2 views/dia nao vira "infinito x"
+  const clamp = x => Math.max(-3, Math.min(3, x));
+  const partes = []; let base = null;
+  if (g.length >= 3) {
+    base = g.length >= 10 ? median(g.slice(-28, -7)) : median(g.slice(0, -1));
+    const janela = (n, w, nome) => {
+      const s = g.slice(-n), m = n === 1 ? s[0] : median(s);
+      const r = (m + EPS) / (base + EPS);
+      partes.push({ nome, w, r, log: clamp(Math.log2(r)) });
+    };
+    janela(1, NOTA_PESOS.d1, 'último dia');
+    janela(3, NOTA_PESOS.d3, '3 dias');
+    if (g.length >= 6) janela(7, NOTA_PESOS.d7, '7 dias');
+  }
+  if (vRatio != null && vRatio > 0) partes.push({ nome:'vídeos', w:NOTA_PESOS.vid, r:vRatio, log:clamp(Math.log2(vRatio)) });
+  if (!partes.length) return null;
+  const W = partes.reduce((a, p) => a + p.w, 0);
+  const score = partes.reduce((a, p) => a + p.w * p.log, 0) / W;
+  return { ratio: Math.pow(2, score), partes, base, provisorio: g.length < 6 };
+}
 function channelTier(ch, historico){
   const vids = allVideos(ch);
   const mediana = (ch.video_stats && ch.video_stats.mediana_views) || 0;
   const ganhos = ganhosDiarios(historico);
-  let r = null, why = '', ultimoGanho = 0;
-  if (ganhos.length >= 3) {
-    const ult = ganhos[ganhos.length - 1];
-    const base = ganhos.slice(-8, -1);
-    const media = base.reduce((a, g) => a + g.v, 0) / base.length;
-    ultimoGanho = ult.v;
-    if (media > 0) {
-      r = ult.v / media;
-      why = `Ganhou ${fmtInt(Math.round(ult.v))} views no último dia: ${r.toFixed(1)}× a média diária dos ${base.length} dias anteriores (${fmtInt(Math.round(media))}).`;
-    }
-  }
-  if (r === null) {
-    // video com menos de 2 dias ainda nao juntou as views dele - fica de fora
-    const rec = vids.filter(v => { const a = idadeDias(v.publicado_em); return a >= 2 && a <= 21; }).slice(0, 6);
-    if (rec.length >= 3 && mediana > 0) {
-      const m = median(rec.map(v => v.views));
-      r = m / mediana;
-      why = `Mediana dos últimos ${rec.length} vídeos: ${fmtInt(Math.round(m))} views, ${r.toFixed(1)}× a mediana do canal (${fmtInt(mediana)}). O histórico diário ainda é curto, então a nota vem dos vídeos.`;
-    }
-  }
-  if (r === null) {
+  const g = ganhos.map(x => x.v);
+  // video com menos de 2 dias ainda nao juntou as views dele - fica de fora
+  const rec = vids.filter(v => { const a = idadeDias(v.publicado_em); return a >= 2 && a <= 21; }).slice(0, 6);
+  const vRatio = rec.length >= 3 && mediana > 0 ? median(rec.map(v => v.views)) / mediana : null;
+  const nota = notaCanal(g, vRatio);
+  if (!nota) {
     return { key:'collecting', lvl:null, why:'Ainda sem dado suficiente pra dar nota: precisa de 3 dias de histórico ou 3 vídeos com 2+ dias no ar.' };
   }
-  let lvl = nivelPorRazao(r);
-  const bomba = ultimoGanho >= 50000 || vids.some(v => idadeDias(v.publicado_em) <= 7 && v.views >= 50000);
-  if (bomba) {
-    lvl = 4;
-    why = '50 mil+ views num vídeo desta semana ou num único dia. ' + why;
+  let lvl = nivelPorRazao(nota.ratio);
+  const ultimoGanho = g.length ? g[g.length - 1] : 0;
+  const d1 = nota.partes.find(p => p.nome === 'último dia');
+  const notas = [];
+  // Assimetrico de proposito: um dia MUITO bom e um evento real (um video
+  // decolou) e merece o selo; um dia ruim costuma ser ruido (Zapier atrasou,
+  // horario de upload) e nao rebaixa ninguem. Piso absoluto evita canal
+  // minusculo ganhar selo por 40 views.
+  if (d1 && ultimoGanho >= 300) {
+    const piso = d1.r >= 10 ? 2 : d1.r >= 4 ? 1 : null;
+    if (piso !== null && lvl < piso) { lvl = piso; notas.push(`Piso por pico: o último dia foi ${d1.r.toFixed(1)}× a rotina.`); }
   }
-  return { key:String(lvl), lvl, ratio:r, why };
+  const bomba = ultimoGanho >= 50000 || vids.some(v => idadeDias(v.publicado_em) <= 7 && v.views >= 50000);
+  if (bomba) { lvl = 4; notas.push('50 mil+ views num vídeo desta semana ou num único dia.'); }
+  const detalhe = nota.partes.map(p => `${p.nome} ${p.r.toFixed(1)}×`).join(' · ');
+  const why = `${notas.join(' ')} Nota combinada: ${nota.ratio.toFixed(2)}× a rotina normal do canal` +
+    (nota.base != null ? ` (${fmtInt(Math.round(nota.base))} views/dia)` : '') + `. ${detalhe}. ` +
+    `Pesos: último dia 10%, 3 dias 25%, 7 dias 45%, vídeos 20% - um dia ruim isolado não rebaixa o canal.` +
+    (nota.provisorio ? ' Histórico curto: nota provisória.' : '');
+  return { key:String(lvl), lvl, ratio:nota.ratio, why:why.trim() };
 }
 function tierChip(t, big){
   const m = CHANNEL_TIERS[t.key];
