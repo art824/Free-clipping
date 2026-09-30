@@ -461,6 +461,7 @@ function gravarHistoricoHoje_(canal, stats) {
 /** Gatilho de tempo (1x/dia, ver instalarHistorico) - grava o snapshot de
  * hoje de cada canal. Antes disso dependia do Claude rodar isso na mao. */
 function registrarHistoricoDiario() {
+  registrarAgendaTodos_();
   Object.keys(CANAIS).forEach(function (canal) {
     var cfg = CANAIS[canal];
     if (!cfg.ytId) return;
@@ -482,6 +483,66 @@ function instalarHistorico() {
   Logger.log('Historico diario instalado.');
 }
 
+// ---------------------------------------------------------------------------
+// AGENDA (30/09): registro dos horarios agendados de cada canal. O painel
+// compara "devia ter postado" x "postou", mas a pasta do Drive e limpa (a mao
+// por limpar_fila.py, e por limpar() apos 2 dias) - se a agenda viesse so da
+// pasta, todo slot apagado sumia da conta e o esperado ficava menor que o real.
+// Aqui guardamos os horarios (so o ISO, ~27 bytes cada) em Script Properties.
+// Janela guardada: de 72h atras ate 36h a frente. O slot entra no registro
+// ate 36h ANTES de vencer e a limpeza so apaga >=24h depois - sobra folga.
+// ---------------------------------------------------------------------------
+
+var AGENDA_PASSADO_H = 72;
+var AGENDA_FUTURO_H = 36;
+
+function lerAgenda_(canal) {
+  var raw = PropertiesService.getScriptProperties().getProperty('agenda_' + canal);
+  if (!raw) return [];
+  try {
+    var a = JSON.parse(raw);
+    return Array.isArray(a) ? a : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function registrarAgenda_(canal, fila) {
+  var agora = Date.now();
+  var ini = agora - AGENDA_PASSADO_H * 3600000, fim = agora + AGENDA_FUTURO_H * 3600000;
+  var set = {};
+  lerAgenda_(canal).forEach(function (iso) { set[iso] = 1; });
+  fila.forEach(function (i) { set[i.quando] = 1; });
+  var lista = Object.keys(set).filter(function (iso) {
+    var t = Date.parse(iso);
+    return !isNaN(t) && t >= ini && t <= fim;
+  }).sort();
+  var novo = JSON.stringify(lista);
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('agenda_' + canal) !== novo) props.setProperty('agenda_' + canal, novo);
+  return lista;
+}
+
+/** Slots que ja venceram nas ultimas N horas (o painel filtra as 24h que mostra). */
+function agendaRecente_(lista, horas) {
+  var agora = Date.now(), ini = agora - horas * 3600000;
+  return lista.filter(function (iso) {
+    var t = Date.parse(iso);
+    return t <= agora && t > ini;
+  });
+}
+
+/** Garante o registro mesmo se ninguem abrir o painel (chamada pelo gatilho diario). */
+function registrarAgendaTodos_() {
+  Object.keys(CANAIS).forEach(function (canal) {
+    try {
+      registrarAgenda_(canal, listarFilaCompleta_(canal));
+    } catch (err) {
+      Logger.log('agenda falhou pra ' + canal + ': ' + err);
+    }
+  });
+}
+
 function dadosPainel_() {
   var out = { gerado_em: new Date().toISOString(), canais: {} };
   Object.keys(CANAIS).forEach(function (canal) {
@@ -497,6 +558,11 @@ function dadosPainel_() {
       bloco.proximo = futuros.length ? futuros[0] : null;
       bloco.ultimo_agendado = fila.length ? fila[fila.length - 1] : null;
       bloco.itens = fila;  // lista completa, a pagina decide o que mostrar
+      try {
+        bloco.agenda_recente = agendaRecente_(registrarAgenda_(canal, fila), 30);
+      } catch (errA) {
+        bloco.erro_agenda = String(errA);  // a pagina cai na pasta do Drive
+      }
       // esperado nas ultimas 24h = itens da fila cujo horario ja passou mas
       // ainda estao aqui (a limpeza so tira depois de 2 dias) - proxy de
       // "devia ter postado".
@@ -513,7 +579,7 @@ function dadosPainel_() {
         var stats = statsCanal_(cfg.ytId);
         bloco.stats = stats;
         bloco.historico = lerHistorico_(canal);
-        bloco.postados_24h = postadosRecentes_(stats.uploads_playlist, 26);
+        bloco.postados_24h = postadosRecentes_(stats.uploads_playlist, 30);
         try {
           var todosVideos = listarVideosCanal_(stats.uploads_playlist);
           bloco.video_stats = estatisticasVideos_(todosVideos);

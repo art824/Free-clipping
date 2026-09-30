@@ -279,6 +279,16 @@ tr.camp td.when{color:var(--gold)}
 .shelf-mini{display:flex; flex-wrap:wrap; gap:6px; margin:-4px 0 10px}
 .shelf-mini span{font-size:11.5px; font-family:'JetBrains Mono',monospace; background:var(--surface-2); border-radius:6px; padding:2px 7px; cursor:help}
 .modal-panel.filled .modal-panel-inner > *{animation:none}
+.check-row{align-items:flex-start}
+.check-row .dot{margin-top:5px}
+.sub-miss{display:block; font-size:11.5px; color:var(--muted-2); margin-top:2px; line-height:1.45}
+.slots{display:grid; grid-template-columns:repeat(auto-fill,minmax(122px,1fr)); gap:8px}
+.slot{background:var(--surface-2); border-radius:9px; padding:8px 10px; border-left:3px solid var(--muted-2)}
+.slot .h{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12.5px}
+.slot .s{font-size:11px; color:var(--muted); margin-top:2px}
+.slot.ok{border-left-color:var(--ok)} .slot.espera{border-left-color:var(--warn)}
+.slot.falta{border-left-color:var(--bad)} .slot.falta .h{color:var(--bad)}
+.slot.extra{border-left-color:var(--accent-4)}
 .kpis{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px}
 @media (max-width:700px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .kpi{background:var(--surface-2); border-radius:10px; padding:10px 12px; box-shadow:0 1px 0 0 rgba(255,255,255,.03) inset}
@@ -333,7 +343,7 @@ footer{margin-top:30px; color:var(--muted-2); font-size:11.5px; text-align:cente
     </div>
   </div>
 
-  <footer>Os dados vêm direto do Apps Script (que por sua vez é atualizado pelo Claude a partir do YouTube/Zapier) - esta página só busca e exibe, sem intermediário. Se um número parecer errado, o quadro "esperados vs. postados" é aproximado nas primeiras 24h.</footer>
+  <footer>Os dados vêm direto do Apps Script e do YouTube - esta página só busca e exibe, sem intermediário. O quadro "postados" compara os horários agendados das últimas 24h com o que realmente saiu no YouTube; um slot só conta como falha depois de 45 min sem post.</footer>
 </div>
 
 <script>
@@ -627,6 +637,51 @@ function renderFreshness(geradoEm){
   el.textContent = (stale ? "⚠ desatualizado — " : "atualizado ") + (mins < 1 ? "agora" : `há ${mins} min`);
 }
 
+// ---- Agenda x postado ----
+// "Esperado" = slots agendados que ja venceram nas ultimas 24h. Vem de
+// ch.agenda_recente (registro persistente do Apps Script, sobrevive a limpeza
+// da pasta do Drive); sem ele (Apps Script antigo) cai nos itens que ainda
+// estao na pasta - nesse caso o numero pode ficar abaixo do real.
+// Cada slot e pareado com o post que o cobriu: 1a passada aceita ate 90 min de
+// atraso (Zapier checa a cada 15 min); 2a passada deixa um slot ainda sem post
+// pegar um post mais tardio (fila do Zapier atrasada). Slot vencido ha menos
+// de 45 min sem post ainda e "aguardando o Zapier", nao falha.
+const SLOT_GRACA_MS = 45 * 60000, SLOT_ATRASO_MS = 90 * 60000, HORA = 3600000;
+function statusPostagens(ch){
+  const agora = Date.now();
+  const doBackend = Array.isArray(ch.agenda_recente);
+  const fonte = doBackend ? ch.agenda_recente : (ch.itens || []).map(i => i.quando);
+  const slots = [...new Set(fonte.map(s => Date.parse(s)).filter(x => x <= agora && x > agora - 24 * HORA))]
+    .sort((a, b) => a - b).map(t => ({ t, post: null }));
+  const posts = (ch.postados_24h || []).map(p => ({ t: Date.parse(p.publicado_em), titulo: p.titulo, usado: false }))
+    .filter(p => isFinite(p.t)).sort((a, b) => a.t - b.t);
+  [SLOT_ATRASO_MS, 12 * HORA].forEach(limite => {
+    slots.forEach(s => {
+      if (s.post) return;
+      const p = posts.find(q => !q.usado && q.t >= s.t - 10 * 60000 && q.t <= s.t + limite);
+      if (p) { p.usado = true; s.post = p; }
+    });
+  });
+  slots.forEach(s => { s.estado = s.post ? 'ok' : (agora - s.t < SLOT_GRACA_MS ? 'espera' : 'falta'); });
+  return {
+    slots, doBackend,
+    ok: slots.filter(s => s.estado === 'ok'),
+    espera: slots.filter(s => s.estado === 'espera'),
+    falta: slots.filter(s => s.estado === 'falta'),
+    extras: posts.filter(p => !p.usado && p.t > agora - 24 * HORA)
+  };
+}
+function fmtSlot(ms){
+  const dia = t => new Date(t).toLocaleDateString('pt-BR', { timeZone: FUSO_EXIBICAO });
+  const hm = new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: FUSO_EXIBICAO });
+  return dia(ms) === dia(Date.now()) ? hm : `${new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: FUSO_EXIBICAO })} ${hm}`;
+}
+function latestPost(ch){
+  const c = [ch.video_stats && ch.video_stats.recentes && ch.video_stats.recentes[0], (ch.postados_24h || [])[0]]
+    .filter(v => v && v.publicado_em);
+  return c.sort((a, b) => Date.parse(b.publicado_em) - Date.parse(a.publicado_em))[0] || null;
+}
+
 function channelCard(key, ch, meta, historico, pos){
   const stats = ch.stats || null;
   const errStats = ch.erro_stats;
@@ -657,13 +712,35 @@ function channelCard(key, ch, meta, historico, pos){
     filaHtml = `<div class="stat-row"><span class="k" style="color:var(--bad)">Fila falhou: ${esc(errFila)}</span></div>`;
   }
 
-  const esperado = ch.esperados_24h ?? 0;
-  const postado = (ch.postados_24h || []).length;
-  let checkDot = "ok", checkTxt = "sem posts esperados nas últimas 24h";
-  if (esperado > 0) {
-    if (postado >= esperado) { checkDot = "ok"; checkTxt = `${postado}/${esperado} postados — em dia`; }
-    else if (postado > 0) { checkDot = "warn"; checkTxt = `${postado}/${esperado} postados — abaixo do esperado`; }
-    else { checkDot = "bad"; checkTxt = `0/${esperado} postados — verificar Zapier`; }
+  const sp = statusPostagens(ch);
+  const esperado = sp.slots.length, postado = sp.ok.length;
+  let checkDot = "ok", checkTxt, checkSub = [];
+  if (!esperado) {
+    checkTxt = "nenhum post agendado nas últimas 24h";
+  } else {
+    checkTxt = `${postado}/${esperado} postados nas últimas 24h`;
+    const partes = [];
+    if (sp.falta.length) partes.push(`não saiu: ${sp.falta.map(s => fmtSlot(s.t)).join(' · ')}`);
+    if (sp.espera.length) partes.push(`aguardando o Zapier: ${sp.espera.map(s => fmtSlot(s.t)).join(' · ')}`);
+    if (sp.extras.length) partes.push(`+${sp.extras.length} fora da agenda`);
+    checkSub = partes;
+    if (sp.falta.length) checkDot = postado === 0 ? "bad" : "warn";
+  }
+  const checkTip = "Slots agendados que venceram nas últimas 24h × vídeos publicados. Horários em Paris. Slot com menos de 45 min ainda conta como aguardando o Zapier." +
+    (sp.doBackend ? "" : " ATENÇÃO: Apps Script antigo - só conta o que ainda está na pasta do Drive, então pode dar menos que o real.");
+
+  const ult = latestPost(ch);
+  let lastHtml = "";
+  if (ult) {
+    const horas = (Date.now() - Date.parse(ult.publicado_em)) / HORA;
+    const velho = esperado > 0 && horas > 12;
+    lastHtml = `<div class="next">
+      <div class="lbl">Último post <span style="opacity:.6">· horário de Paris</span></div>
+      ${esc(ult.titulo)}
+      <div style="color:${velho ? 'var(--bad)' : 'var(--muted)'};margin-top:2px">${fmtWhen(ult.publicado_em)} · ${fmtAgo(ult.publicado_em)}</div>
+    </div>`;
+  } else if (!errStats) {
+    lastHtml = `<div class="next" style="color:var(--muted)">Nenhum vídeo publicado ainda.</div>`;
   }
 
   let nextHtml = "";
@@ -687,10 +764,11 @@ function channelCard(key, ch, meta, historico, pos){
       ${spark}
       ${statsHtml}
       ${filaHtml}
+      ${lastHtml}
       ${nextHtml}
-      <div class="check-row">
+      <div class="check-row" title="${esc(checkTip)}">
         <span class="dot ${checkDot}"></span>
-        <span class="k">${esc(checkTxt)}</span>
+        <span class="k">${esc(checkTxt)}${checkSub.map(x => `<span class="sub-miss">${esc(x)}</span>`).join('')}</span>
       </div>
     </div>`;
 }
@@ -845,6 +923,20 @@ function bindVideoTable(panel, ch){
   }));
 }
 
+function slotsBlock(ch){
+  const sp = statusPostagens(ch);
+  if (!sp.slots.length && !sp.extras.length) return `<div class="empty-note">Nenhum post agendado nas últimas 24h.</div>`;
+  const rot = { ok: '✓', espera: '⏳', falta: '✗' };
+  const chips = sp.slots.map(s => {
+    const txt = s.estado === 'ok' ? `saiu ${fmtSlot(s.post.t)}` : s.estado === 'espera' ? 'aguardando o Zapier' : 'não saiu';
+    const tip = s.post ? s.post.titulo : '';
+    return `<div class="slot ${s.estado}" title="${esc(tip)}"><div class="h">${rot[s.estado]} ${fmtSlot(s.t)}</div><div class="s">${txt}</div></div>`;
+  }).join('');
+  const ext = sp.extras.map(p => `<div class="slot extra" title="${esc(p.titulo)}"><div class="h">＋ ${fmtSlot(p.t)}</div><div class="s">fora da agenda</div></div>`).join('');
+  return `<div class="slots">${chips}${ext}</div>
+    <p class="note">Horário agendado (Paris) e quando o vídeo realmente saiu. Um slot só vira "não saiu" depois de 45 min sem post.${sp.doBackend ? '' : ' Apps Script antigo: só conta slots que ainda estão na pasta do Drive.'}</p>`;
+}
+
 function detailPanel(key, ch, historico, meta){
   const vs = ch.video_stats, errVs = ch.erro_video_stats;
   const st = ch.stats || {};
@@ -893,6 +985,10 @@ function detailPanel(key, ch, historico, meta){
         <button class="detail-close" id="detail-close" aria-label="Fechar">×</button>
       </div>
       <div class="detail-section">${kpis}</div>
+      <div class="detail-section">
+        <p class="detail-sub">Últimas 24h: agendado × postado</p>
+        ${slotsBlock(ch)}
+      </div>
       <div class="detail-section">
         <p class="detail-sub">Conquistas dos vídeos</p>
         ${shelf(ch)}
