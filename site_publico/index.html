@@ -14,7 +14,7 @@
   /* Paleta por posicao (categorica, ordem fixa) - um canal novo pega a
      proxima cor da lista sozinho, sem precisar declarar nada aqui. */
   --accent-1:#ff6b47; --accent-2:#2ecc71; --accent-3:#a78bfa; --accent-4:#4dabf7; --accent-5:#f06595;
-  --gold:#f0c14b;
+  --gold:#f0c14b; --diamond:#67e8f9;
   --ok:#2ecc71; --warn:#f0c14b; --bad:#ff5c5c;
   color-scheme: dark;
 }
@@ -23,7 +23,7 @@
     --bg:#f7f6f3; --surface:#ffffff; --surface-2:#f0efeb;
     --border:#e2e0da; --text:#1c1b18; --muted:#68655d; --muted-2:#9a968c;
     --accent-1:#e8562f; --accent-2:#1a9850; --accent-3:#7c5cd6; --accent-4:#1c7ed6; --accent-5:#d6336c;
-    --gold:#b8860b;
+    --gold:#b8860b; --diamond:#0e7490;
     color-scheme: light;
   }
 }
@@ -192,7 +192,7 @@ body:not(.settled) .section-title{animation:fadeInUp .5s cubic-bezier(.16,.8,.3,
 .modal-backdrop.show{opacity:1}
 .modal-panel{
   position:fixed; z-index:1002; top:50%; left:50%;
-  width:min(760px, calc(100vw - 32px)); max-height:calc(100vh - 56px);
+  width:min(960px, calc(100vw - 32px)); max-height:calc(100vh - 56px);
   overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain;
   background-color:var(--surface);
   background-image:linear-gradient(160deg, color-mix(in srgb, var(--accent, var(--accent-1)) 9%, var(--surface)), var(--surface) 62%);
@@ -264,6 +264,50 @@ tr.camp td.when{color:var(--gold)}
 .empty-note{padding:16px; color:var(--muted); font-size:12.5px}
 .state h2{display:flex; align-items:center; gap:9px}
 .state h2 .spin-ring{width:15px; height:15px; border-radius:50%; border:2px solid var(--border); border-top-color:var(--accent-1); animation:spin .7s linear infinite; flex-shrink:0}
+/* Niveis: 3 (fogo) pulsa, 4 (diamante) brilha - so os raros se mexem. */
+.trend-chip.tier-hot{animation:trendSlideIn .4s cubic-bezier(.16,.8,.3,1) both .15s, flamePulse 1.8s ease-in-out .5s infinite}
+.trend-chip.tier-hot .trend-icon{display:inline-block; animation:flameFlicker 1.4s ease-in-out infinite}
+.trend-chip.tier-diamond{
+  background:linear-gradient(110deg, color-mix(in srgb, var(--diamond) 26%, transparent) 30%, color-mix(in srgb, var(--diamond) 55%, transparent) 50%, color-mix(in srgb, var(--diamond) 26%, transparent) 70%);
+  background-size:250% 100%;
+  animation:trendSlideIn .4s cubic-bezier(.16,.8,.3,1) both .15s, shimmer 2.6s linear infinite;
+}
+@keyframes shimmer{ from{background-position:100% 0} to{background-position:-150% 0} }
+.detail-handle{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--muted); margin:3px 0 10px}
+.detail-grid + .detail-grid, .detail-grid > div:nth-child(3){margin-top:0}
+.tier-reason{font-size:12.5px; color:var(--muted); margin:-4px 0 0; line-height:1.5; max-width:620px}
+.shelf-mini{display:flex; flex-wrap:wrap; gap:6px; margin:-4px 0 10px}
+.shelf-mini span{font-size:11.5px; font-family:'JetBrains Mono',monospace; background:var(--surface-2); border-radius:6px; padding:2px 7px; cursor:help}
+.modal-panel.filled .modal-panel-inner > *{animation:none}
+.kpis{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px}
+@media (max-width:700px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface-2); border-radius:10px; padding:10px 12px; box-shadow:0 1px 0 0 rgba(255,255,255,.03) inset}
+.kpi .lbl{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.kpi .val{font-family:'JetBrains Mono',monospace; font-weight:800; font-size:18px; margin-top:2px; font-variant-numeric:tabular-nums}
+.kpi .delta{font-size:11.5px; font-family:'JetBrains Mono',monospace; color:var(--muted); margin-top:2px}
+.kpi .delta.up{color:var(--ok)} .kpi .delta.down{color:var(--bad)}
+.shelf{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px}
+@media (max-width:700px){.shelf{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.trophy{background:var(--surface-2); border-radius:10px; padding:10px 6px; text-align:center; border:1px solid transparent; cursor:help}
+.trophy .ic{font-size:22px; line-height:1}
+.trophy .nm{font-size:10.5px; color:var(--muted); margin-top:5px}
+.trophy .ct{font-family:'JetBrains Mono',monospace; font-weight:800; font-size:15px; margin-top:2px}
+.trophy.locked{opacity:.35; filter:grayscale(1)}
+.trophy.earned{border-color:color-mix(in srgb, var(--gold) 40%, transparent)}
+.vt-controls{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px}
+.vt-controls button{font:inherit; font-size:11.5px; font-weight:700; cursor:pointer; background:var(--surface-2); color:var(--muted); border:1px solid var(--border); border-radius:6px; padding:4px 9px}
+.vt-controls button.on{color:var(--text); border-color:var(--muted)}
+table.vt td, table.vt th{padding:7px 8px}
+table.vt .num{text-align:right; font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+table.vt td.lv{text-align:center; cursor:help}
+table.vt td.tt{max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+table.vt a{color:inherit; text-decoration:none} table.vt a:hover{text-decoration:underline}
+table.vt tr.lvl-hi td{background:color-mix(in srgb, var(--gold) 8%, transparent)}
+table.vt thead th{position:sticky; top:0; background:var(--surface); z-index:1}
+@media (max-width:700px){table.vt .opt{display:none} table.vt td.tt{max-width:130px}}
+.tbody-wrap{overflow-x:auto}
+.bar rect:last-child{transition:opacity .15s} .bar:hover rect:last-child{opacity:.7}
+.note{font-size:11.5px; color:var(--muted-2); margin:6px 0 0}
 footer{margin-top:30px; color:var(--muted-2); font-size:11.5px; text-align:center}
 </style>
 </head>
@@ -383,69 +427,148 @@ function animateChartLines(root, force){
   });
 }
 
-// Tendencia do canal: 7 niveis reais (queda forte -> viral), mais um estado
-// "coletando" que nunca inventa direcao a partir de 1 ponto so de historico
-// (regra: amostra pequena nao e distribuicao - com menos de 2 dias so da pra
-// comparar nada). O topo ("Viral") e reservado: so dispara com um salto MUITO
-// grande de views_totais num dia (+20%) OU um video especifico que sozinho ja
-// bateu 10x a mediana do canal - nao com qualquer alta normal.
-const TREND_META = {
-  'decline-strong': { icon:'📉', label:'Queda forte',  color:'var(--bad)' },
-  'decline':        { icon:'↘',  label:'Em queda',      color:'var(--bad)' },
-  'flat':           { icon:'→',  label:'Estável',       color:'var(--muted)' },
-  'up-slight':      { icon:'↗',  label:'Leve alta',     color:'var(--ok)' },
-  'up-moderate':    { icon:'📈', label:'Crescendo',     color:'var(--ok)' },
-  'up-strong':      { icon:'🚀', label:'Disparou',      color:'var(--gold)' },
-  'viral':          { icon:'🔥', label:'Viral',         color:'var(--gold)' },
-  'collecting':     { icon:'◌',  label:'Coletando histórico', color:'var(--muted-2)' }
-};
-
-// "Fora da curva" = metodo de boxplot (Q3 + 1.5x/3x o IQR), calculado no
-// backend a partir da distribuicao REAL de views do canal - nao um
-// multiplo fixo da mediana. Um multiplo fixo (tipo "10x a mediana") quebra
-// num canal pequeno: mediana 7 vezes 10 vira 70, o que nao quer dizer nada.
-// O metodo por quartil se ajusta sozinho, mediana 7 ou mediana 7 mil.
-// threshold null = o backend nao tem videos suficientes (<4) pra calcular -
-// entao nunca marca nada, em vez de inventar um numero.
-function isOutlier(v, vs){
-  return !!(vs && vs.outlier_threshold != null && v.views > vs.outlier_threshold);
-}
-function crazyVideo(vs){
-  return !!(vs && vs.extreme_threshold != null && vs.recentes && vs.recentes[0]
-    && vs.recentes[0].views > vs.extreme_threshold);
-}
-
-function computeTrend(historico, vs){
-  const porDia = (historico && historico.by_date) || {};
-  const datas = Object.keys(porDia).sort();
-  const crazy = crazyVideo(vs);
-  if (datas.length < 2) {
-    return { level: crazy ? 'viral' : 'collecting', days: datas.length };
+// ---- Niveis de viralidade ----
+// Video: precisa bater as DUAS regras do nivel - razao contra a mediana do
+// proprio canal (se ajusta a canal pequeno e grande) E um piso absoluto de
+// views (senao 70 views num canal de mediana 7 viraria "explodiu").
+// O diamante ignora a razao: 50 mil+ e raro em qualquer canal, e o ponto e ser raro.
+const VIDEO_TIERS = [
+  { lvl:1, icon:'📈', label:'Acima da curva', ratio:1.5, min:50 },
+  { lvl:2, icon:'🚀', label:'Decolou',        ratio:3,   min:300 },
+  { lvl:3, icon:'🔥', label:'Pegou fogo',     ratio:6,   min:1000 },
+  { lvl:4, icon:'⚡', label:'Explodiu',       ratio:10,  min:5000 },
+  { lvl:5, icon:'👑', label:'Lendário',       ratio:10,  min:20000 },
+  { lvl:6, icon:'💎', label:'Diamante',       ratio:0,   min:50000 }
+];
+function videoTier(v, mediana){
+  const views = v.views || 0;
+  const r = mediana > 0 ? views / mediana : Infinity;
+  for (let i = VIDEO_TIERS.length - 1; i >= 0; i--) {
+    const t = VIDEO_TIERS[i];
+    if (views >= t.min && r >= t.ratio) return t;
   }
-  const prev = porDia[datas[datas.length - 2]].views_totais;
-  const curr = porDia[datas[datas.length - 1]].views_totais;
-  const pct = prev ? ((curr - prev) / prev) * 100 : null;
-  let level = 'flat';
-  if (pct === null) level = 'collecting';
-  else if (crazy || pct >= 20) level = 'viral';
-  else if (pct >= 8) level = 'up-strong';
-  else if (pct >= 3) level = 'up-moderate';
-  else if (pct >= 1) level = 'up-slight';
-  else if (pct > -1) level = 'flat';
-  else if (pct > -8) level = 'decline';
-  else level = 'decline-strong';
-  return { level, pct, days: datas.length, provisional: datas.length < 5 };
+  return null;
+}
+function tierRegra(t){
+  return `${t.label}: ${fmtInt(t.min)}+ views${t.ratio ? ` e ${t.ratio}× a mediana do canal` : ''}`;
 }
 
-function trendChip(trend, big){
-  const m = TREND_META[trend.level];
-  const pctTxt = (trend.pct !== undefined && trend.pct !== null) ? ` ${trend.pct >= 0 ? '+' : ''}${trend.pct.toFixed(1)}%` : '';
-  const title = trend.level === 'collecting'
-    ? 'Menos de 2 dias de histórico ainda - sem tendência confiável pra mostrar'
-    : (trend.provisional ? `Baseado em só ${trend.days} dia(s) de histórico - provisório` : `${trend.days} dias de histórico`);
-  return `<span class="trend-chip trend-${trend.level}${big ? ' trend-big' : ''}" style="--tc:${m.color}" title="${esc(title)}">
-      <span class="trend-icon">${m.icon}</span>${m.label}${pctTxt}
+const DIA = 86400000;
+function idadeDias(iso){ return (Date.now() - new Date(iso).getTime()) / DIA; }
+function fmtAgo(iso){
+  const h = (Date.now() - new Date(iso).getTime()) / 3600000;
+  if (!isFinite(h)) return '—';
+  if (h < 1) return 'agora';
+  if (h < 24) return `há ${Math.floor(h)}h`;
+  const d = Math.floor(h / 24);
+  return d < 60 ? `há ${d}d` : `há ${Math.floor(d / 30)} meses`;
+}
+function median(arr){
+  if (!arr.length) return 0;
+  const s = arr.slice().sort((a, b) => a - b), m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// Lista completa vem em video_stats.todos (Apps Script novo). Sem ela (deploy
+// antigo) cai na uniao dos 5 melhores + 5 recentes, pra pagina nao quebrar.
+function allVideos(ch){
+  const vs = ch.video_stats || {};
+  if (Array.isArray(vs.todos)) return vs.todos;
+  const m = new Map();
+  [...(vs.recentes || []), ...(vs.melhores || [])].forEach(v => m.set(v.video_id || v.titulo, v));
+  return [...m.values()].sort((a, b) => new Date(b.publicado_em) - new Date(a.publicado_em));
+}
+
+// Views ganhas por dia, a partir do snapshot diario de views_totais. Um buraco
+// de N dias no historico divide o ganho por N (nunca vira um "pico" falso).
+function ganhosDiarios(historico){
+  const por = (historico && historico.by_date) || {};
+  const datas = Object.keys(por).sort();
+  const out = [];
+  for (let i = 1; i < datas.length; i++) {
+    const dias = Math.max(1, Math.round((Date.parse(datas[i]) - Date.parse(datas[i - 1])) / DIA));
+    out.push({ d: datas[i], v: Math.max(0, (por[datas[i]].views_totais - por[datas[i - 1]].views_totais) / dias) });
+  }
+  return out;
+}
+
+// Canal: 8 niveis, de "ridiculamente mal" a diamante. Compara o canal com
+// ELE MESMO (ganho do ultimo dia vs media dos dias anteriores; ou, com
+// historico curto, os videos recentes vs a mediana do canal) - nunca um
+// numero fixo, que so faria sentido pra um tamanho de canal.
+const CHANNEL_TIERS = {
+  '-3': { icon:'💀', label:'Ridiculamente mal', color:'var(--bad)' },
+  '-2': { icon:'🆘', label:'Muito mal',         color:'var(--bad)' },
+  '-1': { icon:'📉', label:'Mal',               color:'var(--bad)' },
+  '0':  { icon:'➖', label:'Normal',            color:'var(--muted)' },
+  '1':  { icon:'📈', label:'Bem',               color:'var(--ok)' },
+  '2':  { icon:'🚀', label:'Muito bem',         color:'var(--ok)' },
+  '3':  { icon:'🔥', label:'Absurdamente bem',  color:'var(--gold)' },
+  '4':  { icon:'💎', label:'Diamante',          color:'var(--diamond)' },
+  'collecting': { icon:'◌', label:'Coletando dados', color:'var(--muted-2)' }
+};
+function nivelPorRazao(r){
+  if (r < 0.15) return -3;
+  if (r < 0.35) return -2;
+  if (r < 0.7)  return -1;
+  if (r < 1.3)  return 0;
+  if (r < 2.5)  return 1;
+  if (r < 5)    return 2;
+  return 3;
+}
+function channelTier(ch, historico){
+  const vids = allVideos(ch);
+  const mediana = (ch.video_stats && ch.video_stats.mediana_views) || 0;
+  const ganhos = ganhosDiarios(historico);
+  let r = null, why = '', ultimoGanho = 0;
+  if (ganhos.length >= 3) {
+    const ult = ganhos[ganhos.length - 1];
+    const base = ganhos.slice(-8, -1);
+    const media = base.reduce((a, g) => a + g.v, 0) / base.length;
+    ultimoGanho = ult.v;
+    if (media > 0) {
+      r = ult.v / media;
+      why = `Ganhou ${fmtInt(Math.round(ult.v))} views no último dia: ${r.toFixed(1)}× a média diária dos ${base.length} dias anteriores (${fmtInt(Math.round(media))}).`;
+    }
+  }
+  if (r === null) {
+    // video com menos de 2 dias ainda nao juntou as views dele - fica de fora
+    const rec = vids.filter(v => { const a = idadeDias(v.publicado_em); return a >= 2 && a <= 21; }).slice(0, 6);
+    if (rec.length >= 3 && mediana > 0) {
+      const m = median(rec.map(v => v.views));
+      r = m / mediana;
+      why = `Mediana dos últimos ${rec.length} vídeos: ${fmtInt(Math.round(m))} views, ${r.toFixed(1)}× a mediana do canal (${fmtInt(mediana)}). O histórico diário ainda é curto, então a nota vem dos vídeos.`;
+    }
+  }
+  if (r === null) {
+    return { key:'collecting', lvl:null, why:'Ainda sem dado suficiente pra dar nota: precisa de 3 dias de histórico ou 3 vídeos com 2+ dias no ar.' };
+  }
+  let lvl = nivelPorRazao(r);
+  const bomba = ultimoGanho >= 50000 || vids.some(v => idadeDias(v.publicado_em) <= 7 && v.views >= 50000);
+  if (bomba) {
+    lvl = 4;
+    why = '50 mil+ views num vídeo desta semana ou num único dia. ' + why;
+  }
+  return { key:String(lvl), lvl, ratio:r, why };
+}
+function tierChip(t, big){
+  const m = CHANNEL_TIERS[t.key];
+  const cls = t.lvl === 4 ? ' tier-diamond' : t.lvl === 3 ? ' tier-hot' : t.key === 'collecting' ? ' trend-collecting' : '';
+  return `<span class="trend-chip${cls}${big ? ' trend-big' : ''}" style="--tc:${m.color}" title="${esc(t.why)}">
+      <span class="trend-icon">${m.icon}</span>${m.label}
     </span>`;
+}
+function contagemNiveis(ch){
+  const med = (ch.video_stats && ch.video_stats.mediana_views) || 0;
+  const c = {};
+  allVideos(ch).forEach(v => { const t = videoTier(v, med); if (t) c[t.lvl] = (c[t.lvl] || 0) + 1; });
+  return c;
+}
+function shelfMini(ch){
+  const c = contagemNiveis(ch);
+  const itens = VIDEO_TIERS.slice().reverse().filter(t => c[t.lvl])
+    .map(t => `<span title="${esc(tierRegra(t))}">${t.icon} ${c[t.lvl]}</span>`);
+  return itens.length ? `<div class="shelf-mini">${itens.join('')}</div>` : '';
 }
 
 // Mini-linha do card fechado: so aparece com 2+ dias reais (nunca desenha
@@ -480,7 +603,7 @@ function channelCard(key, ch, meta, historico, pos){
   const stats = ch.stats || null;
   const errStats = ch.erro_stats;
   const errFila = ch.erro_fila;
-  const trend = computeTrend(historico, ch.video_stats);
+  const tier = channelTier(ch, historico);
   const porDia = (historico && historico.by_date) || {};
   const spark = miniSpark(Object.keys(porDia).sort(), porDia, meta.accent);
 
@@ -531,7 +654,8 @@ function channelCard(key, ch, meta, historico, pos){
     <div class="card" data-key="${key}" style="--accent:${meta.accent}; --i:${pos || 0}">
       <p class="ch-name">${esc(ch.titulo || key)}</p>
       <p class="ch-handle">${esc(meta.handle)}</p>
-      ${trendChip(trend)}
+      ${tierChip(tier)}
+      ${shelfMini(ch)}
       ${spark}
       ${statsHtml}
       ${filaHtml}
@@ -543,19 +667,11 @@ function channelCard(key, ch, meta, historico, pos){
     </div>`;
 }
 
-function videoRow(v, vs){
-  const hot = isOutlier(v, vs);
-  return `<div class="mini-row${hot ? ' mini-hot' : ''}">
-      <span class="t">${hot ? '<span class="flame" title="Fora da curva do canal">🔥</span> ' : ''}${esc(v.titulo)}</span>
-      <span class="n">${numSpan('', v.views)} views</span>
-    </div>`;
-}
-
 // Grafico de 1 serie so (views totais no tempo): mediana/media ja mostram
 // "video tipico", aqui o que importa e a curva. Sem eixo duplo (regra do
 // dataviz: 1 serie, 1 escala) - so um numero, so uma cor, a do canal.
 function growthChart(datas, porDia, accent){
-  const W = 560, H = 150, padL = 44, padR = 12, padT = 14, padB = 22;
+  const W = 420, H = 150, padL = 52, padR = 10, padT = 14, padB = 22;
   const innerW = W - padL - padR, innerH = H - padT - padB;
   const vals = datas.map(d => porDia[d].views_totais);
   const minV = Math.min(...vals), maxV = Math.max(...vals);
@@ -580,8 +696,8 @@ function growthChart(datas, porDia, accent){
   return `
     <div class="chart-wrap">
       <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Views totais ao longo do tempo">
-        <text class="chart-val-label" x="${padL}" y="${padT + 4}">${maxV.toLocaleString('pt-BR')}</text>
-        <text class="chart-val-label" x="${padL}" y="${padT + innerH}">${minV.toLocaleString('pt-BR')}</text>
+        <text class="chart-val-label" x="${padL - 6}" y="${padT + 4}" text-anchor="end">${maxV.toLocaleString('pt-BR')}</text>
+        <text class="chart-val-label" x="${padL - 6}" y="${padT + innerH}" text-anchor="end">${minV.toLocaleString('pt-BR')}</text>
         ${pts.length > 1 ? `<path class="chart-area" d="${area}" style="fill:${accent}; opacity:.14; stroke:none"/>` : ''}
         ${pts.length > 1 ? `<path class="chart-line" d="${line}" style="fill:none; stroke:${accent}; stroke-width:2"/>` : ''}
         ${dots}
@@ -590,62 +706,189 @@ function growthChart(datas, porDia, accent){
     </div>`;
 }
 
-function detailPanel(key, ch, historico, meta){
-  const vs = ch.video_stats;
-  const errVs = ch.erro_video_stats;
+// Barras de 1 serie so (cor do canal). Hover nativo por barra, com alvo do
+// tamanho da coluna inteira - nao so da barra, que pode ter 1px de altura.
+function barChart(pts, accent, unit, label){
+  if (!pts.length) return '';
+  const W = 420, H = 150, padL = 52, padR = 10, padT = 14, padB = 22;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const maxV = Math.max(...pts.map(p => p.v), 1);
+  const slot = iw / pts.length, bw = Math.max(2, Math.min(28, slot - 2));
+  const bars = pts.map((p, i) => {
+    const h = p.v / maxV * ih, x = padL + i * slot + (slot - bw) / 2, y = padT + ih - h;
+    return `<g class="bar"><title>${p.d}: ${Math.round(p.v).toLocaleString('pt-BR')} ${unit}</title>
+      <rect x="${(padL + i * slot).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${ih}" fill="transparent"/>
+      ${h > 0 ? `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(3, bw / 2, h / 2).toFixed(1)}" style="fill:${accent}"/>` : ''}
+    </g>`;
+  }).join('');
+  const lx = i => (padL + i * slot + slot / 2).toFixed(1);
+  const last = pts.length - 1;
+  return `<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
+      <line x1="${padL}" x2="${W - padR}" y1="${padT + ih}" y2="${padT + ih}" style="stroke:var(--border)"/>
+      <text class="chart-val-label" x="${padL - 6}" y="${padT + 4}" text-anchor="end">${Math.round(maxV).toLocaleString('pt-BR')}</text>
+      <text class="chart-val-label" x="${padL - 6}" y="${padT + ih}" text-anchor="end">0</text>
+      ${bars}
+      <text class="chart-axis-label" x="${lx(0)}" y="${H - 4}" text-anchor="middle">${pts[0].d.slice(5)}</text>
+      ${last > 0 ? `<text class="chart-axis-label" x="${lx(last)}" y="${H - 4}" text-anchor="middle">${pts[last].d.slice(5)}</text>` : ''}
+    </svg></div>`;
+}
 
-  let statsBlock;
-  if (vs && vs.total) {
-    statsBlock = `
-      <div class="big-stat">
-        <div><div class="lbl">Mediana de views</div><div class="val">${numSpan('', vs.mediana_views)}</div></div>
-        <div><div class="lbl">Média de views</div><div class="val">${numSpan('', vs.media_views)}</div></div>
-        <div><div class="lbl">Vídeos analisados</div><div class="val">${numSpan('', vs.total)}</div></div>
-      </div>
-      <div class="detail-grid">
-        <div>
-          <p class="detail-sub">Maiores vídeos</p>
-          ${(vs.melhores || []).map(v => videoRow(v, vs)).join('') || '<div class="empty-note">—</div>'}
-        </div>
-        <div>
-          <p class="detail-sub">Mais recentes</p>
-          ${(vs.recentes || []).map(v => videoRow(v, vs)).join('') || '<div class="empty-note">—</div>'}
-        </div>
+function postsPorDia(vids, dias){
+  const out = [];
+  for (let i = dias - 1; i >= 0; i--) out.push({ d: new Date(Date.now() - i * DIA).toISOString().slice(0, 10), v: 0 });
+  const idx = Object.fromEntries(out.map((o, i) => [o.d, i]));
+  vids.forEach(v => { const d = String(v.publicado_em || '').slice(0, 10); if (d in idx) out[idx[d]].v++; });
+  return out;
+}
+
+// Variacao nos ultimos ~7 dias de historico (ou desde o 1o dia, se tiver menos).
+function delta7(historico, campo){
+  const por = (historico && historico.by_date) || {};
+  const datas = Object.keys(por).sort();
+  if (datas.length < 2) return null;
+  const ult = datas[datas.length - 1];
+  const ini = datas.find(d => Date.parse(d) >= Date.parse(ult) - 7 * DIA) || datas[0];
+  if (ini === ult) return null;
+  return { v: por[ult][campo] - por[ini][campo], dias: Math.round((Date.parse(ult) - Date.parse(ini)) / DIA) };
+}
+function kpi(lbl, valHtml, d, title){
+  const dl = d ? `<div class="delta ${d.v > 0 ? 'up' : d.v < 0 ? 'down' : ''}">${d.v > 0 ? '+' : ''}${fmtInt(d.v)} em ${d.dias}d</div>` : '';
+  return `<div class="kpi"${title ? ` title="${esc(title)}"` : ''}><div class="lbl">${lbl}</div><div class="val">${valHtml}</div>${dl}</div>`;
+}
+
+function shelf(ch){
+  const c = contagemNiveis(ch);
+  return `<div class="shelf">${VIDEO_TIERS.map(t => {
+    const n = c[t.lvl] || 0;
+    return `<div class="trophy ${n ? 'earned' : 'locked'}" title="${esc(tierRegra(t))}">
+        <div class="ic">${t.icon}</div><div class="nm">${t.label}</div><div class="ct">${n}</div>
       </div>`;
+  }).join('')}</div>`;
+}
+
+// Estado da tabela fica fora do modal: o auto-refresh de 60s reconstroi o
+// painel, e perder a ordenacao escolhida a cada minuto seria irritante.
+let vtSort = 'recentes', vtHot = false;
+
+function videoTableRows(ch){
+  const med = (ch.video_stats && ch.video_stats.mediana_views) || 0;
+  let rows = allVideos(ch).map(v => {
+    const eng = v.views && v.likes !== undefined ? ((v.likes || 0) + (v.comentarios || 0)) / v.views * 100 : null;
+    return { v, t: videoTier(v, med), x: med ? v.views / med : null, vpd: v.views / Math.max(idadeDias(v.publicado_em), 1), eng };
+  });
+  if (vtHot) rows = rows.filter(r => r.t);
+  const chave = {
+    recentes:  r => -new Date(r.v.publicado_em).getTime(),
+    vistos:    r => -r.v.views,
+    nivel:     r => -((r.t ? r.t.lvl : 0) * 1e10 + r.v.views),
+    engajados: r => -(r.eng ?? -1)
+  }[vtSort];
+  rows.sort((a, b) => chave(a) - chave(b));
+  if (!rows.length) return `<tr><td colspan="9" class="empty-note">Nenhum vídeo nesse filtro.</td></tr>`;
+  return rows.map(r => `<tr class="${r.t && r.t.lvl >= 3 ? 'lvl-hi' : ''}">
+      <td class="lv" title="${r.t ? esc(tierRegra(r.t)) : 'Normal'}">${r.t ? r.t.icon : ''}</td>
+      <td class="tt"><a href="https://www.youtube.com/watch?v=${encodeURIComponent(r.v.video_id || '')}" target="_blank" rel="noopener" title="${esc(r.v.titulo)}">${esc(r.v.titulo)}</a></td>
+      <td class="num">${fmtAgo(r.v.publicado_em)}</td>
+      <td class="num">${fmtInt(r.v.views)}</td>
+      <td class="num">${r.x == null ? '—' : r.x.toFixed(1) + '×'}</td>
+      <td class="num opt">${fmtInt(Math.round(r.vpd))}</td>
+      <td class="num opt">${r.v.likes === undefined ? '—' : fmtInt(r.v.likes)}</td>
+      <td class="num opt">${r.v.comentarios === undefined ? '—' : fmtInt(r.v.comentarios)}</td>
+      <td class="num opt">${r.eng == null ? '—' : r.eng.toFixed(1) + '%'}</td>
+    </tr>`).join('');
+}
+function videoTable(ch){
+  const b = (k, l) => `<button type="button" data-sort="${k}" class="${vtSort === k ? 'on' : ''}">${l}</button>`;
+  return `<div class="vt-controls">${b('recentes', 'Recentes')}${b('vistos', 'Mais vistos')}${b('nivel', 'Nível')}${b('engajados', 'Engajamento')}
+      <button type="button" data-hot class="${vtHot ? 'on' : ''}">Só destaques</button></div>
+    <div class="tbody-wrap" style="max-height:420px"><table class="vt"><thead><tr>
+      <th style="width:30px"></th><th>Vídeo</th><th class="num">Postado</th><th class="num">Views</th>
+      <th class="num" title="Views ÷ mediana do canal">× med.</th><th class="num opt">Views/dia</th>
+      <th class="num opt" title="Likes">👍</th><th class="num opt" title="Comentários">💬</th>
+      <th class="num opt" title="(likes + comentários) ÷ views">Eng.</th>
+    </tr></thead><tbody>${videoTableRows(ch)}</tbody></table></div>`;
+}
+function bindVideoTable(panel, ch){
+  const btns = panel.querySelectorAll('.vt-controls button');
+  btns.forEach(b => b.addEventListener('click', () => {
+    if (b.hasAttribute('data-hot')) vtHot = !vtHot; else vtSort = b.dataset.sort;
+    btns.forEach(x => x.classList.toggle('on', x.hasAttribute('data-hot') ? vtHot : x.dataset.sort === vtSort));
+    panel.querySelector('.vt tbody').innerHTML = videoTableRows(ch);
+  }));
+}
+
+function detailPanel(key, ch, historico, meta){
+  const vs = ch.video_stats, errVs = ch.erro_video_stats;
+  const st = ch.stats || {};
+  const vids = allVideos(ch);
+  const tier = channelTier(ch, historico);
+
+  const totV = vids.reduce((a, v) => a + (v.views || 0), 0);
+  const temEng = vids.some(v => v.likes !== undefined);
+  const eng = temEng && totV ? vids.reduce((a, v) => a + (v.likes || 0) + (v.comentarios || 0), 0) / totV * 100 : null;
+  const ganhos = ganhosDiarios(historico).slice(-30);
+  const ontem = ganhos.length ? ganhos[ganhos.length - 1].v : null;
+
+  const kpis = `<div class="kpis">
+      ${kpi('Inscritos', numSpan('', st.inscritos), delta7(historico, 'inscritos'))}
+      ${kpi('Views totais', numSpan('', st.views_totais), delta7(historico, 'views_totais'))}
+      ${kpi('Vídeos no ar', numSpan('', st.total_videos), delta7(historico, 'total_videos'))}
+      ${kpi('Mediana / vídeo', numSpan('', vs ? vs.mediana_views : null), null, 'O vídeo típico - um viral sozinho não mexe nela')}
+      ${kpi('Views no último dia', ontem == null ? '—' : numSpan('', Math.round(ontem)))}
+      ${kpi('Engajamento', eng == null ? '—' : eng.toFixed(1) + '%', null, '(likes + comentários) ÷ views, somando todos os vídeos')}
+    </div>`;
+
+  let videosBlock;
+  if (vids.length) {
+    videosBlock = videoTable(ch) + (vs && !Array.isArray(vs.todos)
+      ? `<p class="note">Mostrando só os destaques e os recentes. Reimplante o Apps Script (versão nova) pra ver todos os vídeos com likes e comentários.</p>` : '');
   } else if (errVs) {
-    statsBlock = `<div class="empty-note" style="color:var(--bad)">Estatísticas por vídeo falharam: ${esc(errVs)}</div>`;
+    videosBlock = `<div class="empty-note" style="color:var(--bad)">Estatísticas por vídeo falharam: ${esc(errVs)}</div>`;
   } else {
-    statsBlock = `<div class="empty-note">Sem vídeos suficientes ainda.</div>`;
+    videosBlock = `<div class="empty-note">Sem vídeos ainda.</div>`;
   }
 
-  const trend = computeTrend(historico, vs);
   const porDia = (historico && historico.by_date) || {};
   const datas = Object.keys(porDia).sort().slice(-30);
-  let growthBlock;
-  if (datas.length) {
-    growthBlock = growthChart(datas, porDia, meta.accent);
-    if (datas.length < 3) {
-      growthBlock += `<p class="empty-note" style="padding:6px 0 0">Histórico começou em ${datas[0]} — a curva fica mais clara depois de alguns dias.</p>`;
-    }
-  } else {
-    growthBlock = `<div class="empty-note">Sem histórico ainda — o primeiro dia é registrado na próxima atualização.</div>`;
-  }
+  const growth = datas.length
+    ? growthChart(datas, porDia, meta.accent) + (datas.length < 3 ? `<p class="note">Histórico começou em ${datas[0]} - a curva fica clara depois de alguns dias.</p>` : '')
+    : `<div class="empty-note">Sem histórico ainda - o primeiro dia é registrado às 23h (UTC).</div>`;
 
   return `
       <div class="detail-head">
         <div>
-          <h3 style="margin-bottom:8px">${esc(ch.titulo || key)}</h3>
-          ${trendChip(trend, true)}
+          <h3>${esc(ch.titulo || key)}</h3>
+          <p class="detail-handle">${esc(meta.handle)}</p>
+          ${tierChip(tier, true)}
+          <p class="tier-reason">${esc(tier.why)}</p>
         </div>
         <button class="detail-close" id="detail-close" aria-label="Fechar">×</button>
       </div>
-      <div class="detail-section">${statsBlock}</div>
+      <div class="detail-section">${kpis}</div>
       <div class="detail-section">
-        <p class="detail-sub">Views totais por dia</p>
-        ${growthBlock}
+        <p class="detail-sub">Conquistas dos vídeos</p>
+        ${shelf(ch)}
+      </div>
+      <div class="detail-section detail-grid">
+        <div>
+          <p class="detail-sub">Views totais por dia</p>
+          ${growth}
+        </div>
+        <div>
+          <p class="detail-sub">Views ganhas por dia</p>
+          ${ganhos.length ? barChart(ganhos, meta.accent, 'views', 'Views ganhas por dia') : '<div class="empty-note">Precisa de 2 dias de histórico.</div>'}
+        </div>
+        <div>
+          <p class="detail-sub">Vídeos postados por dia (14d)</p>
+          ${barChart(postsPorDia(vids, 14), meta.accent, 'vídeo(s)', 'Vídeos postados por dia')}
+        </div>
       </div>
       <div class="detail-section">
-        <p class="detail-sub">Fila completa (${(ch.itens || []).length})</p>
+        <p class="detail-sub">Vídeos (${vids.length})</p>
+        ${videosBlock}
+      </div>
+      <div class="detail-section">
+        <p class="detail-sub">Fila de postagem (${(ch.itens || []).length})</p>
         ${queueTable(ch)}
       </div>`;
 }
@@ -713,12 +956,23 @@ function fillModalPanel(){
   if (!lastData || !lastData.canais[modal.key]) return;
   const idx = backendKeys(lastData).indexOf(modal.key);
   const meta = metaFor(modal.key, idx);
+  const ch = lastData.canais[modal.key];
+  // refresh de 60s com o modal aberto: troca o conteudo sem replay de animacao
+  // nem pulo de scroll - so a 1a abertura anima.
+  const refill = modal.panel.classList.contains('filled');
+  const scroll = modal.panel.scrollTop;
   modal.panel.style.setProperty('--accent', meta.accent);
-  modal.panel.innerHTML = `<div class="modal-panel-inner">${detailPanel(modal.key, lastData.canais[modal.key], lastData.canais[modal.key].historico, meta)}</div>`;
+  modal.panel.innerHTML = `<div class="modal-panel-inner">${detailPanel(modal.key, ch, ch.historico, meta)}</div>`;
   const closeBtn = modal.panel.querySelector('#detail-close');
   if (closeBtn) closeBtn.addEventListener('click', closeDetail);
-  animateCounts(modal.panel, true);
-  animateChartLines(modal.panel, true);
+  bindVideoTable(modal.panel, ch);
+  if (refill) {
+    modal.panel.scrollTop = scroll;
+  } else {
+    animateCounts(modal.panel, true);
+    animateChartLines(modal.panel, true);
+    modal.panel.classList.add('filled');
+  }
 }
 
 function openDetail(key, cardEl){
@@ -729,6 +983,8 @@ function openDetail(key, cardEl){
     const prevCard = document.querySelector(`.card[data-key="${modal.key}"]`);
     if (prevCard) prevCard.classList.remove('open');
     modal.key = key; openKey = key;
+    modal.panel.classList.remove('filled');
+    modal.panel.scrollTop = 0;
     if (cardEl) cardEl.classList.add('open');
     fillModalPanel();
     return;

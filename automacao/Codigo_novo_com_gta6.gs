@@ -336,17 +336,28 @@ function listarVideosCanal_(uploadsPlaylistId) {
   var videos = [];
   for (var i = 0; i < ids.length; i += 50) {
     var lote = ids.slice(i, i + 50);
-    var r2 = YouTube.Videos.list('snippet,statistics', { id: lote.join(',') });
+    var r2 = YouTube.Videos.list('snippet,statistics,contentDetails', { id: lote.join(',') });
     (r2.items || []).forEach(function (v) {
+      var s = v.statistics || {};
       videos.push({
         video_id: v.id,
         titulo: v.snippet.title,
         publicado_em: v.snippet.publishedAt,
-        views: Number((v.statistics && v.statistics.viewCount) || 0)
+        views: Number(s.viewCount || 0),
+        likes: Number(s.likeCount || 0),
+        comentarios: Number(s.commentCount || 0),
+        duracao_s: duracaoISO_(v.contentDetails && v.contentDetails.duration)
       });
     });
   }
   return videos;
+}
+
+/** "PT1M5S" -> 65. null se nao vier. */
+function duracaoISO_(iso) {
+  var m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || '');
+  if (!m) return null;
+  return (Number(m[1] || 0) * 3600) + (Number(m[2] || 0) * 60) + Number(m[3] || 0);
 }
 
 /** Percentil por interpolacao linear (metodo padrao) sobre uma lista JA
@@ -397,6 +408,9 @@ function estatisticasVideos_(videos) {
     mediana_views: Math.round(mediana),
     melhores: ordenados.slice(0, 5),
     recentes: recentes.slice(0, 5),
+    // lista inteira (ate MAX_VIDEOS_STATS), mais recente primeiro - a pagina
+    // monta a tabela detalhada, os niveis de viralidade e a cadencia com isso.
+    todos: recentes,
     outlier_threshold: outlierThreshold,
     extreme_threshold: extremeThreshold
   };
