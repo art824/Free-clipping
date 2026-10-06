@@ -142,8 +142,10 @@ body:not(.settled) .card{
 .trend-chip.trend-big{font-size:13px; padding:6px 14px 6px 10px}
 .trend-chip.trend-big .trend-icon{font-size:15px}
 
-.mini-spark{margin:2px 0 12px; opacity:.9}
-.mini-spark svg{display:block; width:100%; height:22px; overflow:visible}
+.mini-spark{margin:2px 0 12px}
+.mini-spark svg{display:block; width:100%; height:auto; overflow:visible}
+.spark-meta{display:flex; justify-content:space-between; gap:8px; margin-top:3px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted)}
+.spark-meta .up{color:var(--ok)} .spark-meta .down{color:var(--bad)}
 
 .flame{display:inline-block; animation:flameFlicker 1.4s ease-in-out infinite; margin-right:2px}
 .mini-row.mini-hot{
@@ -639,23 +641,58 @@ function shelfMini(ch){
   return itens.length ? `<div class="shelf-mini">${itens.join('')}</div>` : '';
 }
 
-// Mini-linha do card fechado: so aparece com 2+ dias reais (nunca desenha
-// tendencia de 1 ponto so).
+// Mini-grafico do card fechado: views totais dos ultimos 30 dias.
+// Proporcao honesta, 4 regras:
+//  1. Desenhado na proporcao real (sem esticar: a bolinha e redonda, a linha
+//     tem espessura constante) e alto o bastante pra se ler (56px, nao 22).
+//  2. Eixo X por DATA, nao por posicao - buraco de 3 dias no historico ocupa
+//     3 dias de largura, nao 1.
+//  3. A ALTURA TOTAL vale no minimo 10% do total atual. Escala "do minimo ao
+//     maximo" faz +0,2% e +200% desenharem a mesma subida cheia; assim, quem
+//     cresce 0,2% fica quase reto e so quem cresce 10%+ enche a caixa.
+//  4. O numero real vem escrito embaixo (ganho, %, periodo), pra a forma
+//     nunca ser a unica informacao.
+// So aparece com 2+ dias reais (nunca desenha tendencia de 1 ponto so).
+const SPARK_PISO_PCT = 0.10;
 function miniSpark(datas, porDia, accent){
+  datas = datas.slice(-30);
   if (datas.length < 2) return '';
-  const W = 240, H = 22, pad = 3;
+  const W = 240, H = 56, padX = 5, padT = 7, padB = 5;
   const vals = datas.map(d => porDia[d].views_totais);
   const minV = Math.min(...vals), maxV = Math.max(...vals);
-  const span = (maxV - minV) || 1;
-  const x = i => pad + (W - pad * 2) * i / (datas.length - 1);
-  const y = v => pad + (H - pad * 2) * (1 - (v - minV) / span);
-  const pts = vals.map((v, i) => [x(i), y(v)]);
-  const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const span = Math.max(maxV - minV, maxV * SPARK_PISO_PCT, 1);
+  const t0 = Date.parse(datas[0]), t1 = Date.parse(datas[datas.length - 1]);
+  const x = d => padX + (W - padX * 2) * ((Date.parse(d) - t0) / Math.max(t1 - t0, 1));
+  const y = v => H - padB - (H - padT - padB) * ((v - minV) / span);
+  const pts = datas.map((d, i) => [x(d), y(vals[i])]);
+  const f = n => n.toFixed(1);
+  const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + f(p[0]) + ',' + f(p[1])).join(' ');
+  const base = f(H - padB);
+  const area = `${line} L${f(pts[pts.length - 1][0])},${base} L${f(pts[0][0])},${base} Z`;
   const last = pts[pts.length - 1];
-  return `<div class="mini-spark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-      <path d="${line}" style="fill:none; stroke:${accent}; stroke-width:1.6; opacity:.85"/>
-      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2" style="fill:${accent}"/>
-    </svg></div>`;
+  const gid = 'sg' + Math.random().toString(36).slice(2, 8);
+  const hits = pts.map((p, i) => `<circle cx="${f(p[0])}" cy="${f(p[1])}" r="6" fill="transparent"><title>${datas[i]}: ${vals[i].toLocaleString('pt-BR')} views</title></circle>`).join('');
+
+  const ganho = vals[vals.length - 1] - vals[0];
+  const pct = vals[0] ? ganho / vals[0] * 100 : null;
+  const dias = Math.max(1, Math.round((t1 - t0) / DIA));
+  const sinal = ganho > 0 ? '+' : '';
+  const cls = ganho > 0 ? 'up' : ganho < 0 ? 'down' : '';
+  const pctTxt = pct === null ? '' : `${sinal}${pct.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+  const tip = `Views totais, ${datas[0]} a ${datas[datas.length - 1]}. A altura do gráfico equivale a no mínimo ${Math.round(SPARK_PISO_PCT * 100)}% do total atual: crescimento pequeno fica quase reto, de propósito.`;
+  return `<div class="mini-spark" title="${esc(tip)}">
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Views totais nos últimos ${dias} dias">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" style="stop-color:${accent}; stop-opacity:.32"/><stop offset="1" style="stop-color:${accent}; stop-opacity:0"/>
+      </linearGradient></defs>
+      <line x1="${padX}" x2="${W - padX}" y1="${base}" y2="${base}" style="stroke:var(--border)"/>
+      <path d="${area}" style="fill:url(#${gid}); stroke:none"/>
+      <path d="${line}" style="fill:none; stroke:${accent}; stroke-width:1.8; stroke-linejoin:round; stroke-linecap:round"/>
+      <circle cx="${f(last[0])}" cy="${f(last[1])}" r="3" style="fill:${accent}; stroke:var(--surface); stroke-width:1.5"/>
+      ${hits}
+    </svg>
+    <div class="spark-meta"><span class="${cls}">${sinal}${fmtInt(ganho)} views</span><span>${pctTxt ? pctTxt + ' · ' : ''}${dias}d</span></div>
+  </div>`;
 }
 
 function renderFreshness(geradoEm){
