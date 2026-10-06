@@ -68,7 +68,15 @@ function doGet(e) {
   if (p.dados) {
     // Painel (dashboard): JSON com fila + estatisticas de todos os canais.
     // Nunca usado pelo Zapier - so pela pagina do painel.
-    var json = JSON.stringify(dadosPainel_());
+    // Cache de ~2 min: o site se atualiza sozinho a cada minuto, e cada calculo
+    // gasta ~30 unidades da cota diaria do YouTube (10 mil) e leva dezenas de
+    // segundos. Com o cache, uma aba aberta o dia todo gasta ~1/2 disso, e quase
+    // toda resposta e instantanea. "Atualizar" no site manda &fresh=1 e pula o cache.
+    var json = p.fresh ? null : cachePainelLer_();
+    if (!json) {
+      json = JSON.stringify(dadosPainel_());
+      cachePainelGravar_(json);
+    }
     return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
   }
   var canal = p.canal ? String(p.canal).toLowerCase() : CANAL_PADRAO;
@@ -541,6 +549,50 @@ function registrarAgendaTodos_() {
       Logger.log('agenda falhou pra ' + canal + ': ' + err);
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// CACHE DO PAINEL (CacheService limita 100KB por valor; o JSON passa disso,
+// entao vai em pedacos de 30 mil caracteres - no pior caso 3 bytes/char = 90KB).
+// ---------------------------------------------------------------------------
+
+var PAINEL_CACHE_SEGUNDOS = 120;
+var PAINEL_CACHE_PEDACO = 30000;
+
+function cachePainelLer_() {
+  try {
+    var c = CacheService.getScriptCache();
+    var meta = c.get('painel_meta');
+    if (!meta) return null;
+    var partes = meta.split(':');           // "<qtd pedacos>:<tamanho total>"
+    var n = Number(partes[0]), tam = Number(partes[1]);
+    var chaves = [];
+    for (var i = 0; i < n; i++) chaves.push('painel_' + i);
+    var got = c.getAll(chaves);
+    var s = '';
+    for (var j = 0; j < n; j++) {
+      var pedaco = got['painel_' + j];
+      if (pedaco == null) return null;      // um pedaco expirou antes: refaz tudo
+      s += pedaco;
+    }
+    return s.length === tam ? s : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function cachePainelGravar_(json) {
+  try {
+    var obj = {}, n = 0;
+    for (var i = 0; i < json.length; i += PAINEL_CACHE_PEDACO) {
+      obj['painel_' + n] = json.substr(i, PAINEL_CACHE_PEDACO);
+      n++;
+    }
+    obj['painel_meta'] = n + ':' + json.length;
+    CacheService.getScriptCache().putAll(obj, PAINEL_CACHE_SEGUNDOS);
+  } catch (e) {
+    Logger.log('cache do painel falhou (segue sem cache): ' + e);
+  }
 }
 
 function dadosPainel_() {
