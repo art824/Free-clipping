@@ -294,8 +294,10 @@ function statsCanal_(channelId) {
   var r = YouTube.Channels.list('snippet,statistics,contentDetails', { id: channelId });
   if (!r.items || !r.items.length) throw new Error('canal nao encontrado: ' + channelId);
   var c = r.items[0];
+  var th = c.snippet.thumbnails || {};   // 'medium' = 240px, nitido nas telas retina
   return {
     nome: c.snippet.title,
+    icone: ((th.medium || th.default || th.high || {}).url) || '',
     inscritos: Number(c.statistics.subscriberCount || 0),
     views_totais: Number(c.statistics.viewCount || 0),
     total_videos: Number(c.statistics.videoCount || 0),

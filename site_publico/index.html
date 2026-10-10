@@ -116,8 +116,18 @@ body:not(.settled) .card{
   opacity:0; transition:opacity .3s;
 }
 .card:hover::before{opacity:1}
-.card .ch-name{font-weight:800; font-size:15px; margin:0 0 2px}
-.card .ch-handle{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--muted); margin:0 0 10px}
+.ch-head{display:flex; align-items:center; gap:12px; margin-bottom:10px}
+.ch-id{min-width:0; flex:1}
+.ch-avatar{
+  position:relative; flex:none; width:var(--sz,40px); height:var(--sz,40px); border-radius:50%; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  background:color-mix(in srgb, var(--accent) 24%, var(--surface-2));
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent), 0 6px 14px -8px rgba(0,0,0,.7);
+}
+.ch-avatar .ini{font-weight:800; font-size:calc(var(--sz,40px) * .42); color:color-mix(in srgb, var(--accent) 70%, var(--text))}
+.ch-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block}
+.card .ch-name{font-weight:800; font-size:15px; margin:0 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.card .ch-handle{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--muted); margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
 /* Selo de tendencia: 5 niveis (viral / alta forte / leve alta / estavel /
    queda) + "coletando" quando ainda nao ha 2 dias de historico pra comparar -
@@ -281,7 +291,7 @@ tr.camp td.when{color:var(--gold)}
   animation:trendSlideIn .4s cubic-bezier(.16,.8,.3,1) both .15s, shimmer 2.6s linear infinite;
 }
 @keyframes shimmer{ from{background-position:100% 0} to{background-position:-150% 0} }
-.detail-handle{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--muted); margin:3px 0 10px}
+.detail-handle{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--muted); margin:3px 0 0}
 .detail-grid + .detail-grid, .detail-grid > div:nth-child(3){margin-top:0}
 .tier-reason{font-size:12.5px; color:var(--muted); margin:-4px 0 0; line-height:1.5; max-width:620px}
 .shelf-mini{display:flex; flex-wrap:wrap; gap:6px; margin:-4px 0 10px}
@@ -749,6 +759,21 @@ function latestPost(ch){
   return c.sort((a, b) => Date.parse(b.publicado_em) - Date.parse(a.publicado_em))[0] || null;
 }
 
+// "Pensa Como Dono - fila" / "GTA 6 - queue": o sufixo existe porque o mesmo
+// titulo e o nome do feed RSS do Zapier no Apps Script. Na tela nao interessa.
+function nomeCanal(ch, key){
+  return String((ch && ch.titulo) || key || '').replace(/\s*[-–—]\s*(fila|queue)\s*$/i, '').trim() || String(key || '');
+}
+// Foto do canal (vem do YouTube em stats.icone). A inicial fica por baixo: serve
+// de placeholder enquanto a imagem carrega e de fallback se ela falhar ou se o
+// Apps Script ainda for a versao antiga e nao mandar o campo.
+function avatar(ch, key, accent, tam){
+  const nome = nomeCanal(ch, key);
+  const ini = (nome.match(/[\p{L}\p{N}]/u) || ['?'])[0].toUpperCase();
+  const url = ch && ch.stats && ch.stats.icone;
+  return `<span class="ch-avatar" style="--accent:${accent}; --sz:${tam || 40}px"><span class="ini">${esc(ini)}</span>${url ? `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>`;
+}
+
 function channelCard(key, ch, meta, historico, pos){
   const stats = ch.stats || null;
   const errStats = ch.erro_stats;
@@ -824,8 +849,13 @@ function channelCard(key, ch, meta, historico, pos){
 
   return `
     <div class="card" data-key="${key}" style="--accent:${meta.accent}; --i:${pos || 0}">
-      <p class="ch-name">${esc(ch.titulo || key)}</p>
-      <p class="ch-handle">${esc(meta.handle)}</p>
+      <div class="ch-head">
+        ${avatar(ch, key, meta.accent, 40)}
+        <div class="ch-id">
+          <p class="ch-name">${esc(nomeCanal(ch, key))}</p>
+          <p class="ch-handle">${esc(meta.handle)}</p>
+        </div>
+      </div>
       ${tierChip(tier)}
       ${shelfMini(ch)}
       ${spark}
@@ -1044,8 +1074,13 @@ function detailPanel(key, ch, historico, meta){
   return `
       <div class="detail-head">
         <div>
-          <h3>${esc(ch.titulo || key)}</h3>
-          <p class="detail-handle">${esc(meta.handle)}</p>
+          <div class="ch-head">
+            ${avatar(ch, key, meta.accent, 46)}
+            <div class="ch-id">
+              <h3>${esc(nomeCanal(ch, key))}</h3>
+              <p class="detail-handle">${esc(meta.handle)}</p>
+            </div>
+          </div>
           ${tierChip(tier, true)}
           <p class="tier-reason">${esc(tier.why)}</p>
         </div>
@@ -1231,7 +1266,7 @@ function updateNav(){
   if (!modal || !modal.prev || !lastData) return;
   const keys = displayKeys(lastData), n = keys.length;
   const i = keys.indexOf(modal.key);
-  const nome = k => (lastData.canais[k] && lastData.canais[k].titulo) || k;
+  const nome = k => lastData.canais[k] ? nomeCanal(lastData.canais[k], k) : k;
   modal.prev.title = modal.prev.ariaLabel = `Canal anterior: ${nome(keys[(i - 1 + n) % n])}`;
   modal.next.title = modal.next.ariaLabel = `Próximo canal: ${nome(keys[(i + 1) % n])}`;
 }
@@ -1267,7 +1302,7 @@ function render(data){
   const keys = displayKeys(data);
   const bKeys = backendKeys(data);
   const sub = document.querySelector('.sub');
-  if (sub) sub.textContent = keys.map(k => data.canais[k].titulo || k).join(' · ');
+  if (sub) sub.textContent = keys.map(k => nomeCanal(data.canais[k], k)).join(' · ');
   const cards = keys.map((k, i) => channelCard(k, data.canais[k], metaFor(k, bKeys.indexOf(k)), data.canais[k].historico, i)).join('');
   root.innerHTML = `<div class="grid">${cards}</div>`;
   root.querySelectorAll('.card').forEach(c => {
