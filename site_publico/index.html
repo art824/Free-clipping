@@ -771,7 +771,8 @@ function avatar(ch, key, accent, tam){
   const nome = nomeCanal(ch, key);
   const ini = (nome.match(/[\p{L}\p{N}]/u) || ['?'])[0].toUpperCase();
   const url = ch && ch.stats && ch.stats.icone;
-  return `<span class="ch-avatar" style="--accent:${accent}; --sz:${tam || 40}px"><span class="ini">${esc(ini)}</span>${url ? `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>`;
+  const dica = url ? '' : 'Sem foto: o Apps Script ainda não mandou o ícone do canal. Implante a versão nova (Implantar > Gerenciar implantações > Nova versão).';
+  return `<span class="ch-avatar" style="--accent:${accent}; --sz:${tam || 40}px" title="${esc(dica)}"><span class="ini">${esc(ini)}</span>${url ? `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.parentNode.title='A foto não carregou: '+this.src; this.remove()">` : ''}</span>`;
 }
 
 function channelCard(key, ch, meta, historico, pos){
