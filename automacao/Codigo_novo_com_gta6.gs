@@ -55,6 +55,11 @@ var CANAIS = {
     pasta: 'CanalGTA6/fila',
     ytId: 'UCPY-W0lxe6izchSTMxOq-tg',
     titulo: 'GTA 6 - queue'
+  },
+  gta6b: {
+    pasta: 'CanalGTA6B/fila',
+    ytId: 'UC65xEUjUZqRgmGIQS3jCNzQ',
+    titulo: 'Central GTA 6 Brasil - queue'
   }
   // proximo canal: so uma entrada aqui, ex.:
   // outronome: { pasta: 'PastaDoDrive/fila', ytId: 'UC...', titulo: 'Nome - fila' }
