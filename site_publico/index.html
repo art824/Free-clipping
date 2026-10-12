@@ -1115,19 +1115,28 @@ function detailPanel(key, ch, historico, meta){
         ${videosBlock}
       </div>
       <div class="detail-section">
-        <p class="detail-sub">Fila de postagem (${(ch.itens || []).length})</p>
+        <p class="detail-sub">Fila de postagem (${futureItems(ch).length})</p>
         ${queueTable(ch)}
       </div>`;
+}
+
+// So os itens cujo horario AINDA NAO chegou - o que falta postar. O passado
+// (ja postado ou vencido ha mais de DIAS_ATE_LIMPAR dias, ver limpar() no
+// Apps Script) nao interessa aqui; quem quer ver o historico tem o grafico
+// de views por dia logo acima. Pedido do Arthur 12/10/2026 - a tabela
+// misturava passado e futuro e dava a impressao de fila vazia/cheia errada
+// numa olhada rapida.
+function futureItems(ch){
+  return (ch.itens || []).filter(it => !isPast(it.quando));
 }
 
 // So a tabela da fila - o popup do canal e o unico lugar onde ela aparece
 // agora (antes tinha uma copia solta embaixo da grade, fora do popup).
 function queueTable(ch){
-  const items = ch.itens || [];
+  const items = futureItems(ch);
   const rows = items.map(it => {
-    const past = isPast(it.quando);
     return `<tr class="${it.campanha ? 'camp' : ''}">
-      <td class="when ${past ? 'past' : ''}">${fmtWhen(it.quando)}</td>
+      <td class="when">${fmtWhen(it.quando)}</td>
       <td class="title">${it.campanha ? '<span class="tag-camp">CAMP</span>' : ''}${esc(it.titulo)}</td>
     </tr>`;
   }).join('');
