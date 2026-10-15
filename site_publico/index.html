@@ -174,9 +174,7 @@ body:not(.settled) .card{
 .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
 .check-row{display:flex; align-items:center; gap:7px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); font-size:12.5px}
 .check-row .k{color:var(--muted); flex:1}
-.next{margin-top:10px; padding:10px 11px; background:var(--surface-2); border-radius:9px; font-size:12.5px; line-height:1.5}
-.next .lbl{color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:3px}
-.next .campaign-tag{color:var(--gold); font-weight:700}
+.campaign-dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--gold); vertical-align:middle; margin-left:3px}
 
 .section-title{font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:26px 0 10px}
 body:not(.settled) .section-title{animation:fadeInUp .5s cubic-bezier(.16,.8,.3,1) both}
@@ -354,6 +352,10 @@ table.vt td.lv{text-align:center; cursor:help}
 table.vt td.tt{max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 table.vt a{color:inherit; text-decoration:none} table.vt a:hover{text-decoration:underline}
 table.vt tr.lvl-hi td{background:color-mix(in srgb, var(--gold) 8%, transparent)}
+/* Campanha usa roxo (nao o dourado do nivel) de proposito - as duas marcacoes
+   podem coincidir no mesmo video, e precisam continuar distinguiveis juntas. */
+table.vt tr.camp td.lv{box-shadow:inset 3px 0 0 0 var(--accent-3)}
+.vt-camp-tag{display:inline-block; font-size:9px; font-weight:800; color:var(--accent-3); border:1px solid var(--accent-3); border-radius:4px; padding:1px 4px; margin-right:5px; vertical-align:middle; flex-shrink:0}
 table.vt thead th{position:sticky; top:0; background:var(--surface); z-index:1}
 @media (max-width:700px){table.vt .opt{display:none} table.vt td.tt{max-width:130px}}
 .tbody-wrap{overflow-x:auto}
@@ -662,10 +664,13 @@ function shelfMini(ch){
 //     cresce 0,2% fica quase reto e so quem cresce 10%+ enche a caixa.
 //  4. O numero real vem escrito embaixo (ganho, %, periodo), pra a forma
 //     nunca ser a unica informacao.
-// So aparece com 2+ dias reais (nunca desenha tendencia de 1 ponto so).
+// So aparece com 2+ dias reais (nunca desenha tendencia de 1 ponto so). Janela
+// de 7 dias (nao 30) - pedido do Arthur: o preview e sobre "como ta indo
+// agora", nao o historico inteiro (esse fica no popup, grafico grande).
 const SPARK_PISO_PCT = 0.10;
+const SPARK_DIAS = 7;
 function miniSpark(datas, porDia, accent){
-  datas = datas.slice(-30);
+  datas = datas.slice(-SPARK_DIAS);
   if (datas.length < 2) return '';
   const W = 240, H = 56, padX = 5, padT = 7, padB = 5;
   const vals = datas.map(d => porDia[d].views_totais);
@@ -822,30 +827,24 @@ function channelCard(key, ch, meta, historico, pos){
   const checkTip = "Slots agendados que venceram nas últimas 24h × vídeos publicados. Horários em Paris. Slot com menos de 45 min ainda conta como aguardando o Zapier." +
     (sp.doBackend ? "" : " ATENÇÃO: Apps Script antigo - só conta o que ainda está na pasta do Drive, então pode dar menos que o real.");
 
+  // So o horario, sem titulo - pedido do Arthur (15/10): o card e um resumo
+  // rapido e mais enxuto; o titulo de cada post ja aparece no popup do canal.
   const ult = latestPost(ch);
   let lastHtml = "";
   if (ult) {
     const horas = (Date.now() - Date.parse(ult.publicado_em)) / HORA;
     const velho = esperado > 0 && horas > 12;
-    lastHtml = `<div class="next">
-      <div class="lbl">Último post <span style="opacity:.6">· horário de Paris</span></div>
-      ${esc(ult.titulo)}
-      <div style="color:${velho ? 'var(--bad)' : 'var(--muted)'};margin-top:2px">${fmtWhen(ult.publicado_em)} · ${fmtAgo(ult.publicado_em)}</div>
-    </div>`;
+    lastHtml = `<div class="stat-row"><span class="k">Último post</span><span class="v"${velho ? ' style="color:var(--bad)"' : ''} title="${esc(fmtWhen(ult.publicado_em) + ' · horário de Paris')}">${fmtAgo(ult.publicado_em)}</span></div>`;
   } else if (!errStats) {
-    lastHtml = `<div class="next" style="color:var(--muted)">Nenhum vídeo publicado ainda.</div>`;
+    lastHtml = `<div class="stat-row"><span class="k">Último post</span><span class="v" style="color:var(--muted)">—</span></div>`;
   }
 
   let nextHtml = "";
   if (ch.proximo) {
     const isCamp = ch.proximo.campanha;
-    nextHtml = `<div class="next">
-      <div class="lbl">Próximo post <span style="opacity:.6">· horário de Paris</span></div>
-      ${isCamp ? '<span class="campaign-tag">CAMPANHA · </span>' : ''}${esc(ch.proximo.titulo)}
-      <div style="color:var(--muted);margin-top:2px">${fmtWhen(ch.proximo.quando)}</div>
-    </div>`;
+    nextHtml = `<div class="stat-row"><span class="k">Próximo post${isCamp ? ' <span class="campaign-dot" title="Próximo é clipe de campanha"></span>' : ''}</span><span class="v" title="horário de Paris">${fmtWhen(ch.proximo.quando)}</span></div>`;
   } else if (!errFila) {
-    nextHtml = `<div class="next" style="color:var(--bad)">Fila sem próximo post agendado.</div>`;
+    nextHtml = `<div class="stat-row"><span class="k">Próximo post</span><span class="v" style="color:var(--bad)">sem agenda</span></div>`;
   }
 
   return `
@@ -989,9 +988,11 @@ function videoTableRows(ch){
   }[vtSort];
   rows.sort((a, b) => chave(a) - chave(b));
   if (!rows.length) return `<tr><td colspan="9" class="empty-note">Nenhum vídeo nesse filtro.</td></tr>`;
-  return rows.map(r => `<tr class="${r.t && r.t.lvl >= 3 ? 'lvl-hi' : ''}">
-      <td class="lv" title="${r.t ? esc(tierRegra(r.t)) : 'Normal'}">${r.t ? r.t.icon : ''}</td>
-      <td class="tt"><a href="https://www.youtube.com/watch?v=${encodeURIComponent(r.v.video_id || '')}" target="_blank" rel="noopener" title="${esc(r.v.titulo)}">${esc(r.v.titulo)}</a></td>
+  return rows.map(r => {
+    const cls = [r.t && r.t.lvl >= 3 ? 'lvl-hi' : '', r.v.campanha ? 'camp' : ''].filter(Boolean).join(' ');
+    return `<tr class="${cls}">
+      <td class="lv" title="${r.t ? esc(tierRegra(r.t)) : 'Normal'}${r.v.campanha ? ' · clipe de campanha' : ''}">${r.t ? r.t.icon : ''}</td>
+      <td class="tt">${r.v.campanha ? '<span class="vt-camp-tag" title="Clipe de campanha">CAMP</span>' : ''}<a href="https://www.youtube.com/watch?v=${encodeURIComponent(r.v.video_id || '')}" target="_blank" rel="noopener" title="${esc(r.v.titulo)}">${esc(r.v.titulo)}</a></td>
       <td class="num">${fmtAgo(r.v.publicado_em)}</td>
       <td class="num">${fmtInt(r.v.views)}</td>
       <td class="num">${r.x == null ? '—' : r.x.toFixed(1) + '×'}</td>
@@ -999,7 +1000,8 @@ function videoTableRows(ch){
       <td class="num opt">${r.v.likes === undefined ? '—' : fmtInt(r.v.likes)}</td>
       <td class="num opt">${r.v.comentarios === undefined ? '—' : fmtInt(r.v.comentarios)}</td>
       <td class="num opt">${r.eng == null ? '—' : r.eng.toFixed(1) + '%'}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 function videoTable(ch){
   const b = (k, l) => `<button type="button" data-sort="${k}" class="${vtSort === k ? 'on' : ''}">${l}</button>`;

@@ -337,7 +337,11 @@ function postadosRecentes_(uploadsPlaylistId, horas) {
  * da API); ate MAX_VIDEOS_STATS pra nao estourar tempo/cota num canal grande. */
 var MAX_VIDEOS_STATS = 200;
 
-function listarVideosCanal_(uploadsPlaylistId) {
+// marca = cfg.marcaCampanha do canal (ver CANAIS) - mesma logica de
+// listarFilaCompleta_: "e campanha" = a marcacao aparece no titulo. Sem ela
+// (canal sem campanha ativa), campanha vem sempre false.
+function listarVideosCanal_(uploadsPlaylistId, marca) {
+  marca = marca ? marca.toLowerCase() : null;
   var ids = [];
   var pageToken = null;
   do {
@@ -354,14 +358,16 @@ function listarVideosCanal_(uploadsPlaylistId) {
     var r2 = YouTube.Videos.list('snippet,statistics,contentDetails', { id: lote.join(',') });
     (r2.items || []).forEach(function (v) {
       var s = v.statistics || {};
+      var titulo = v.snippet.title;
       videos.push({
         video_id: v.id,
-        titulo: v.snippet.title,
+        titulo: titulo,
         publicado_em: v.snippet.publishedAt,
         views: Number(s.viewCount || 0),
         likes: Number(s.likeCount || 0),
         comentarios: Number(s.commentCount || 0),
-        duracao_s: duracaoISO_(v.contentDetails && v.contentDetails.duration)
+        duracao_s: duracaoISO_(v.contentDetails && v.contentDetails.duration),
+        campanha: marca ? (titulo || '').toLowerCase().indexOf(marca) !== -1 : false
       });
     });
   }
@@ -640,7 +646,7 @@ function dadosPainel_() {
         bloco.historico = lerHistorico_(canal);
         bloco.postados_24h = postadosRecentes_(stats.uploads_playlist, 30);
         try {
-          var todosVideos = listarVideosCanal_(stats.uploads_playlist);
+          var todosVideos = listarVideosCanal_(stats.uploads_playlist, cfg.marcaCampanha);
           bloco.video_stats = estatisticasVideos_(todosVideos);
         } catch (errV) {
           bloco.erro_video_stats = String(errV);
